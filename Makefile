@@ -15,6 +15,13 @@ LDFLAGS := -s -w \
 	-X main.commit=$(COMMIT) \
 	-X main.date=$(DATE)
 
+CONTAINER_IMAGE ?= fbs-interlock-gateway-cluster
+CONTAINER_TAG ?= dev
+
+CONTAINER_IMAGE ?= fbs-interlock-gateway-cluster
+CONTAINER_TAG ?= dev
+CONTAINER_PLATFORM ?= linux/amd64
+
 .PHONY: \
 	run \
 	fmt \
@@ -29,6 +36,8 @@ LDFLAGS := -s -w \
 	build \
 	build-check \
 	verify \
+	container-build \
+	container-run \
 	init-config \
 	shelly-auth \
 	ca \
@@ -100,6 +109,25 @@ build-check:
 		-o "$(BUILD_DIR)/ci/$(APP)" \
 		$(CMD)
 
+container-build:
+	docker build \
+		--platform "$(CONTAINER_PLATFORM)" \
+		-f Containerfile \
+		--build-arg VERSION="$(VERSION)" \
+		--build-arg COMMIT="$(COMMIT)" \
+		--build-arg DATE="$(DATE)" \
+		-t "$(CONTAINER_IMAGE):$(CONTAINER_TAG)" \
+		.
+
+container-run:
+	docker run --rm \
+		--network host \
+		-v "$(CURDIR)/config.yaml:/config/config.yaml:ro" \
+		-v "$(CURDIR)/gateway.sqlite3:/data/gateway.sqlite3" \
+		-v "$(CURDIR)/tls:/tls:ro" \
+		"$(CONTAINER_IMAGE):$(CONTAINER_TAG)" \
+		-config /config/config.yaml
+		
 # =========================
 # VALIDATION
 # =========================

@@ -10,7 +10,6 @@ import (
 	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/admin"
 	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
 	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/fbs"
-	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/process"
 	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/shelly"
 	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/status"
 )
@@ -133,9 +132,6 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}
 
 		enabledCount++
-		if err := process.KillPort(tool.Port); err != nil {
-			log.Printf("warning: failed to clear port %d for tool=%s: %v", tool.Port, tool.InterlockName, err)
-		}
 
 		tool := tool
 
