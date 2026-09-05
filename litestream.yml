@@ -1,0 +1,19 @@
+# litestream.yml
+
+exec: >
+  /fbs-interlock-gateway-cluster
+  -config /data/config.yaml
+  -db /data/gateway.sqlite3
+  -admin 0.0.0.0:18090
+
+dbs:
+  - path: /data/gateway.sqlite3
+    restore-if-db-not-exists: true
+    replica:
+      type: s3
+      bucket: fbs-interlock-gateway-cluster
+      path: gateway
+      endpoint: ${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+      region: auto
+      access-key-id: ${R2_ACCESS_KEY_ID}
+      secret-access-key: ${R2_SECRET_ACCESS_KEY}
