@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  gateway:
+    image: fbs-interlock-gateway-cluster:swarm-test
+
+    user: "65532:65532"
+
+    environment:
+      R2_ACCOUNT_ID: "${R2_ACCOUNT_ID}"
+
+    volumes:
+      - fbs-gateway-swarm-data:/data
+
+    secrets:
+      - source: fbs_r2_access_key_id
+        target: r2_access_key_id
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+
+      - source: fbs_r2_secret_access_key
+        target: r2_secret_access_key
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+
+      - source: server-ca
+        target: /tls/server-ca.crt
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+
+      - source: gateway-client-cert
+        target: /tls/gateway-client.crt
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+
+      - source: gateway-client-key
+        target: /tls/gateway-client.key
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+
+    ports:
+      - "8081-8106:8081-8106"
+      - "18090:18090"
+
+    stop_grace_period: 20s
+
+    deploy:
+      replicas: 1
+
+      restart_policy:
+        condition: any
+        delay: 5s
+        window: 30s
+
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        monitor: 30s
+
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+        monitor: 30s
+
+volumes:
+  fbs-gateway-swarm-data:
+    external: true
+
+secrets:
+  fbs_r2_access_key_id:
+    external: true
+
+  fbs_r2_secret_access_key:
+    external: true
+
+  server-ca:
+    external: true
+
+  gateway-client-cert:
+    external: true
+
+  gateway-client-key:
+    external: true
