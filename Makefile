@@ -1,4 +1,4 @@
-APP := fbs-interlock-gateway
+APP := fbs-interlock-gateway-cluster
 CMD := ./cmd/$(APP)
 
 SERVICE_DIR_WINDOWS := services/windows
@@ -20,7 +20,7 @@ CONFIGS := config.yaml
 CONFIG_DIR ?= /etc/$(APP)
 CONFIG_PATH ?= $(CONFIG_DIR)/$(CONFIGS)
 
-MACOS_CONFIG_DIR := /Library/Application Support/fbs-interlock-gateway
+MACOS_CONFIG_DIR := /Library/Application Support/fbs-interlock-gateway-cluster
 MACOS_DB_PATH := $(MACOS_CONFIG_DIR)/gateway.sqlite3
 
 WINDOWS_INSTALL_DIR ?= C:/FBS/$(APP)
@@ -148,10 +148,10 @@ MACOS_INSTALL_TEMPLATE := $(SERVICE_DIR_MACOS)/install-macos.sh.in
 MACOS_INSTALL_DEV_TEMPLATE := $(SERVICE_DIR_MACOS)/install-macos-dev.sh.in
 MACOS_START_TEMPLATE := $(SERVICE_DIR_MACOS)/start.sh.in
 MACOS_UNINSTALL_TEMPLATE := $(SERVICE_DIR_MACOS)/uninstall-macos.sh.in
-MACOS_PLIST_TEMPLATE := $(SERVICE_DIR_MACOS)/com.williamveith.fbs-interlock-gateway.plist.in
+MACOS_PLIST_TEMPLATE := $(SERVICE_DIR_MACOS)/com.williamveith.fbs-interlock-gateway-cluster.plist.in
 MACOS_UPDATE_TEMPLATE := $(SERVICE_DIR_MACOS)/update-macos.sh.in
-MACOS_UPDATE_PLIST_TEMPLATE := $(SERVICE_DIR_MACOS)/com.williamveith.fbs-interlock-gateway-update.plist.in
-MACOS_PF_ANCHOR_TEMPLATE := $(SERVICE_DIR_MACOS)/fbs-interlock-gateway.pf.in
+MACOS_UPDATE_PLIST_TEMPLATE := $(SERVICE_DIR_MACOS)/com.williamveith.fbs-interlock-gateway-cluster-update.plist.in
+MACOS_PF_ANCHOR_TEMPLATE := $(SERVICE_DIR_MACOS)/fbs-interlock-gateway-cluster.pf.in
 
 MACOS_ARM64_INSTALL_OUT := $(MAC_ARM64_DIR)/install.sh
 MACOS_ARM64_INSTALL_DEV_OUT := $(MAC_ARM64_DIR)/install-dev.sh

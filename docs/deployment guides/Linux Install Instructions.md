@@ -8,7 +8,7 @@ lang: en-US
 
 > **Purpose**
 >
-> This guide covers preparing, building, transferring, installing, validating, operating, updating, and uninstalling `fbs-interlock-gateway` on a dedicated Linux gateway computer.
+> This guide covers preparing, building, transferring, installing, validating, operating, updating, and uninstalling `fbs-interlock-gateway-cluster` on a dedicated Linux gateway computer.
 
 > **Security boundary**
 >
@@ -49,14 +49,14 @@ lang: en-US
 
 The Linux deployment uses systemd for gateway supervision and managed production updates:
 
-1. `fbs-interlock-gateway.service` starts the gateway and keeps it running.
-2. `fbs-interlock-gateway-update.timer` periodically activates the checksum-aware update service in production mode.
+1. `fbs-interlock-gateway-cluster.service` starts the gateway and keeps it running.
+2. `fbs-interlock-gateway-cluster-update.timer` periodically activates the checksum-aware update service in production mode.
 
 ```text
 FBS server
     -> UFW source restriction
     -> Linux gateway listener port
-    -> fbs-interlock-gateway
+    -> fbs-interlock-gateway-cluster
     -> Shelly RPC over HTTP or HTTPS
     -> tool interlock circuit
 ```
@@ -234,13 +234,13 @@ defaults:
 The systemd service uses this working directory:
 
 ```text
-/etc/fbs-interlock-gateway
+/etc/fbs-interlock-gateway-cluster
 ```
 
 The relative paths therefore resolve under:
 
 ```text
-/etc/fbs-interlock-gateway/tls/
+/etc/fbs-interlock-gateway-cluster/tls/
 ```
 
 # Build the Deployment Assets
@@ -283,15 +283,15 @@ The selected build generates:
 
 ```text
 build/linux/
-├── fbs-interlock-gateway
+├── fbs-interlock-gateway-cluster
 ├── config.yaml
-├── fbs-interlock-gateway.service
+├── fbs-interlock-gateway-cluster.service
 ├── install.sh
 ├── install-dev.sh
 ├── uninstall.sh
 ├── update.sh
-├── fbs-interlock-gateway-update.service
-├── fbs-interlock-gateway-update.timer
+├── fbs-interlock-gateway-cluster-update.service
+├── fbs-interlock-gateway-cluster-update.timer
 ├── tls/
 │   ├── server-ca.crt
 │   ├── gateway-client.crt
@@ -402,7 +402,7 @@ chmod +x \
   install-dev.sh \
   uninstall.sh \
   update.sh \
-  fbs-interlock-gateway
+  fbs-interlock-gateway-cluster
 ```
 
 Run the selected installer.
@@ -444,20 +444,20 @@ The installer performs the following operations.
 
 - Creates the configured gateway service user and group when needed
 - Uses the service identity for the long-running gateway process
-- Creates `/var/lib/fbs-interlock-gateway/` with mode `0750` for mutable SQLite state
+- Creates `/var/lib/fbs-interlock-gateway-cluster/` with mode `0750` for mutable SQLite state
 - Verifies that the service account can create and remove files in the state directory
 - Preserves the service user and group during uninstall for safe reinstallation
 
 ## Application and configuration
 
-- Installs the executable under `/opt/fbs-interlock-gateway/`
+- Installs the executable under `/opt/fbs-interlock-gateway-cluster/`
 - Installs `uninstall.sh` under the application directory
 - Installs `update.sh` in production mode
-- Creates `/etc/fbs-interlock-gateway/`
+- Creates `/etc/fbs-interlock-gateway-cluster/`
 - Installs a new `config.yaml` only when no rollback/seed YAML already exists
 - Starts the gateway with:
-  - `-config /etc/fbs-interlock-gateway/config.yaml`
-  - `-db /var/lib/fbs-interlock-gateway/gateway.sqlite3`
+  - `-config /etc/fbs-interlock-gateway-cluster/config.yaml`
+  - `-db /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3`
 - On the first successful start, imports the legacy YAML into SQLite when the database is uninitialized
 - Leaves the original human-authored YAML untouched during that first import
 - Treats `gateway.sqlite3` as authoritative after initialization
@@ -465,7 +465,7 @@ The installer performs the following operations.
 
 ## Gateway TLS files
 
-- Creates `/etc/fbs-interlock-gateway/tls/`
+- Creates `/etc/fbs-interlock-gateway-cluster/tls/`
 - Installs missing runtime TLS files from the deployment package
 - Preserves existing installed TLS files during reinstallation
 - Sets installed TLS files to `root:<service-group>` with mode `0640`
@@ -473,9 +473,9 @@ The installer performs the following operations.
 
 ## systemd services
 
-- Installs and enables `fbs-interlock-gateway.service`
-- Uses `/etc/fbs-interlock-gateway` as the working directory
-- Uses systemd `StateDirectory=fbs-interlock-gateway` for persistent mutable state
+- Installs and enables `fbs-interlock-gateway-cluster.service`
+- Uses `/etc/fbs-interlock-gateway-cluster` as the working directory
+- Uses systemd `StateDirectory=fbs-interlock-gateway-cluster` for persistent mutable state
 - Writes standard output and standard error to journald
 - Restarts the gateway after process exits with bounded rapid-restart behavior
 - Applies `NoNewPrivileges=true`
@@ -498,8 +498,8 @@ The installer performs the following operations.
 ## Application directory
 
 ```text
-/opt/fbs-interlock-gateway/
-├── fbs-interlock-gateway
+/opt/fbs-interlock-gateway-cluster/
+├── fbs-interlock-gateway-cluster
 ├── uninstall.sh
 └── update.sh                 # production mode only
 ```
@@ -507,7 +507,7 @@ The installer performs the following operations.
 ## Authoritative configuration state
 
 ```text
-/var/lib/fbs-interlock-gateway/
+/var/lib/fbs-interlock-gateway-cluster/
 └── gateway.sqlite3           # authoritative SQLite configuration
 ```
 
@@ -516,7 +516,7 @@ The directory is persistent systemd state and is created with mode `0750`. The g
 ## YAML rollback mirror and TLS
 
 ```text
-/etc/fbs-interlock-gateway/
+/etc/fbs-interlock-gateway-cluster/
 ├── config.yaml               # first-run seed; later generated rollback mirror
 ├── config.yaml.bak           # previous YAML mirror when available
 └── tls/
@@ -531,9 +531,9 @@ After `gateway.sqlite3` is initialized, manual changes to `config.yaml` are igno
 
 ```text
 /etc/systemd/system/
-├── fbs-interlock-gateway.service
-├── fbs-interlock-gateway-update.service    # production mode only
-└── fbs-interlock-gateway-update.timer      # production mode only
+├── fbs-interlock-gateway-cluster.service
+├── fbs-interlock-gateway-cluster-update.service    # production mode only
+└── fbs-interlock-gateway-cluster-update.timer      # production mode only
 ```
 
 Linux does not create a separate application log directory. Gateway and updater output is retained by the system journal according to the host's journald configuration.
@@ -543,7 +543,7 @@ Linux does not create a separate application log directory. Gateway and updater 
 ## Check the installed version
 
 ```bash
-sudo /opt/fbs-interlock-gateway/fbs-interlock-gateway \
+sudo /opt/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster \
   -version
 ```
 
@@ -553,7 +553,7 @@ View complete status:
 
 ```bash
 sudo systemctl status \
-  fbs-interlock-gateway.service \
+  fbs-interlock-gateway-cluster.service \
   --no-pager \
   --full
 ```
@@ -562,7 +562,7 @@ Confirm the service is active:
 
 ```bash
 sudo systemctl is-active \
-  fbs-interlock-gateway.service
+  fbs-interlock-gateway-cluster.service
 ```
 
 Expected result:
@@ -575,7 +575,7 @@ Confirm the service is enabled:
 
 ```bash
 sudo systemctl is-enabled \
-  fbs-interlock-gateway.service
+  fbs-interlock-gateway-cluster.service
 ```
 
 Expected result:
@@ -590,7 +590,7 @@ Production installation:
 
 ```bash
 sudo systemctl status \
-  fbs-interlock-gateway-update.timer \
+  fbs-interlock-gateway-cluster-update.timer \
   --no-pager \
   --full
 ```
@@ -599,7 +599,7 @@ List the next scheduled activation:
 
 ```bash
 sudo systemctl list-timers \
-  fbs-interlock-gateway-update.timer
+  fbs-interlock-gateway-cluster-update.timer
 ```
 
 A development installation should not have the update timer enabled.
@@ -666,33 +666,33 @@ Confirm the authoritative database exists and is non-empty:
 
 ```bash
 sudo test -s \
-  /var/lib/fbs-interlock-gateway/gateway.sqlite3
+  /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
 ```
 
 Confirm the service account can read and write it:
 
 ```bash
 sudo -u fbs-gateway test -r \
-  /var/lib/fbs-interlock-gateway/gateway.sqlite3
+  /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
 
 sudo -u fbs-gateway test -w \
-  /var/lib/fbs-interlock-gateway/gateway.sqlite3
+  /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
 ```
 
 Confirm the service account can read the YAML rollback mirror and runtime TLS files:
 
 ```bash
 sudo -u fbs-gateway test -r \
-  /etc/fbs-interlock-gateway/config.yaml
+  /etc/fbs-interlock-gateway-cluster/config.yaml
 
 sudo -u fbs-gateway test -r \
-  /etc/fbs-interlock-gateway/tls/server-ca.crt
+  /etc/fbs-interlock-gateway-cluster/tls/server-ca.crt
 
 sudo -u fbs-gateway test -r \
-  /etc/fbs-interlock-gateway/tls/gateway-client.crt
+  /etc/fbs-interlock-gateway-cluster/tls/gateway-client.crt
 
 sudo -u fbs-gateway test -r \
-  /etc/fbs-interlock-gateway/tls/gateway-client.key
+  /etc/fbs-interlock-gateway-cluster/tls/gateway-client.key
 ```
 
 Each command should exit silently with status `0`.
@@ -701,12 +701,12 @@ Inspect ownership and modes:
 
 ```bash
 sudo ls -ld \
-  /var/lib/fbs-interlock-gateway
+  /var/lib/fbs-interlock-gateway-cluster
 
 sudo ls -l \
-  /var/lib/fbs-interlock-gateway/gateway.sqlite3 \
-  /etc/fbs-interlock-gateway/config.yaml \
-  /etc/fbs-interlock-gateway/tls/
+  /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3 \
+  /etc/fbs-interlock-gateway-cluster/config.yaml \
+  /etc/fbs-interlock-gateway-cluster/tls/
 ```
 
 ## Verify UFW
@@ -774,9 +774,9 @@ Expected FBS-compatible responses:
 
 ```bash
 sudo curl \
-  --cacert /etc/fbs-interlock-gateway/tls/server-ca.crt \
-  --cert /etc/fbs-interlock-gateway/tls/gateway-client.crt \
-  --key /etc/fbs-interlock-gateway/tls/gateway-client.key \
+  --cacert /etc/fbs-interlock-gateway-cluster/tls/server-ca.crt \
+  --cert /etc/fbs-interlock-gateway-cluster/tls/gateway-client.crt \
+  --key /etc/fbs-interlock-gateway-cluster/tls/gateway-client.key \
   "https://<shelly-ddns-host>/rpc/Switch.GetStatus?id=0"
 ```
 
@@ -786,9 +786,9 @@ Add Digest Authentication when the Shelly also requires it:
 sudo curl \
   --anyauth \
   -u "admin:<password>" \
-  --cacert /etc/fbs-interlock-gateway/tls/server-ca.crt \
-  --cert /etc/fbs-interlock-gateway/tls/gateway-client.crt \
-  --key /etc/fbs-interlock-gateway/tls/gateway-client.key \
+  --cacert /etc/fbs-interlock-gateway-cluster/tls/server-ca.crt \
+  --cert /etc/fbs-interlock-gateway-cluster/tls/gateway-client.crt \
+  --key /etc/fbs-interlock-gateway-cluster/tls/gateway-client.key \
   "https://<shelly-ddns-host>/rpc/Switch.GetStatus?id=0"
 ```
 
@@ -843,19 +843,19 @@ http://127.0.0.1:18090
 Production installation enables:
 
 ```text
-fbs-interlock-gateway-update.timer
+fbs-interlock-gateway-cluster-update.timer
 ```
 
 The timer activates:
 
 ```text
-fbs-interlock-gateway-update.service
+fbs-interlock-gateway-cluster-update.service
 ```
 
 which executes:
 
 ```text
-/opt/fbs-interlock-gateway/update.sh
+/opt/fbs-interlock-gateway-cluster/update.sh
 ```
 
 The timer is an hourly release check.
@@ -873,7 +873,7 @@ The updater:
 7. Downloads the candidate binary only when the authenticated checksum differs.
 8. Verifies the candidate SHA-256 and version metadata and rejects authenticated downgrades.
 9. Stops the gateway before replacing a required binary.
-10. Backs up the installed executable and, when present, the authoritative `/var/lib/fbs-interlock-gateway/gateway.sqlite3`.
+10. Backs up the installed executable and, when present, the authoritative `/var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3`.
 11. Installs and re-verifies the replacement executable.
 12. Restarts the gateway and waits for the Admin API.
 13. Verifies that the SQLite database still exists and is non-empty.
@@ -881,7 +881,7 @@ The updater:
 
 The updater does not intentionally replace the YAML rollback mirror or installed TLS files:
 
-- `/etc/fbs-interlock-gateway/config.yaml`
+- `/etc/fbs-interlock-gateway-cluster/config.yaml`
 - `server-ca.crt`
 - `gateway-client.crt`
 - `gateway-client.key`
@@ -895,21 +895,21 @@ Linux log retention remains controlled by journald; the updater does not rotate 
 Run the installed updater directly:
 
 ```bash
-sudo /opt/fbs-interlock-gateway/update.sh
+sudo /opt/fbs-interlock-gateway-cluster/update.sh
 ```
 
 Or start the update service through systemd:
 
 ```bash
 sudo systemctl start \
-  fbs-interlock-gateway-update.service
+  fbs-interlock-gateway-cluster-update.service
 ```
 
 Review the result:
 
 ```bash
 sudo systemctl status \
-  fbs-interlock-gateway-update.service \
+  fbs-interlock-gateway-cluster-update.service \
   --no-pager \
   --full
 ```
@@ -926,7 +926,7 @@ Or disable the timer manually:
 
 ```bash
 sudo systemctl disable --now \
-  fbs-interlock-gateway-update.timer
+  fbs-interlock-gateway-cluster-update.timer
 ```
 
 ## Restore managed updates
@@ -945,7 +945,7 @@ Follow the gateway service:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster.service \
   -f
 ```
 
@@ -953,7 +953,7 @@ Review recent gateway logs:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster.service \
   --since "1 hour ago" \
   --no-pager \
   -o short-iso
@@ -963,7 +963,7 @@ Review updater output:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway-update.service \
+  -u fbs-interlock-gateway-cluster-update.service \
   --no-pager \
   -o short-iso
 ```
@@ -972,8 +972,8 @@ Follow both gateway and updater output:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
-  -u fbs-interlock-gateway-update.service \
+  -u fbs-interlock-gateway-cluster.service \
+  -u fbs-interlock-gateway-cluster-update.service \
   -f
 ```
 
@@ -1004,7 +1004,7 @@ Search for common failures:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster.service \
   --since "24 hours ago" \
   --no-pager |
 grep -Ei \
@@ -1018,13 +1018,13 @@ Existing log history remains subject to the host's journald retention settings.
 The authoritative configuration is:
 
 ```text
-/var/lib/fbs-interlock-gateway/gateway.sqlite3
+/var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
 ```
 
 The compatibility/rollback YAML is:
 
 ```text
-/etc/fbs-interlock-gateway/config.yaml
+/etc/fbs-interlock-gateway-cluster/config.yaml
 ```
 
 `config.yaml` is used as the import source only when the SQLite database is uninitialized. Once `gateway.sqlite3` contains configuration, normal startup loads SQLite and ignores manual edits to the YAML file.
@@ -1044,42 +1044,42 @@ The Admin UI validates the complete proposed configuration, preserves stored pas
 Export the authoritative database to a temporary YAML file:
 
 ```bash
-sudo /opt/fbs-interlock-gateway/fbs-interlock-gateway \
+sudo /opt/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster \
   config export \
-  -db /var/lib/fbs-interlock-gateway/gateway.sqlite3 \
-  -output /tmp/fbs-interlock-gateway.yaml
+  -db /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3 \
+  -output /tmp/fbs-interlock-gateway-cluster.yaml
 ```
 
 Edit the exported file:
 
 ```bash
-sudo nano /tmp/fbs-interlock-gateway.yaml
+sudo nano /tmp/fbs-interlock-gateway-cluster.yaml
 ```
 
 Import the complete edited configuration transactionally and refresh the YAML rollback mirror:
 
 ```bash
-sudo /opt/fbs-interlock-gateway/fbs-interlock-gateway \
+sudo /opt/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster \
   config import \
-  -db /var/lib/fbs-interlock-gateway/gateway.sqlite3 \
-  -input /tmp/fbs-interlock-gateway.yaml \
-  -mirror-config /etc/fbs-interlock-gateway/config.yaml
+  -db /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3 \
+  -input /tmp/fbs-interlock-gateway-cluster.yaml \
+  -mirror-config /etc/fbs-interlock-gateway-cluster/config.yaml
 ```
 
 Restart the gateway after a successful CLI import:
 
 ```bash
 sudo systemctl restart \
-  fbs-interlock-gateway.service
+  fbs-interlock-gateway-cluster.service
 ```
 
 For review or sharing, create a redacted export:
 
 ```bash
-sudo /opt/fbs-interlock-gateway/fbs-interlock-gateway \
+sudo /opt/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster \
   config export \
-  -db /var/lib/fbs-interlock-gateway/gateway.sqlite3 \
-  -output /tmp/fbs-interlock-gateway-redacted.yaml \
+  -db /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3 \
+  -output /tmp/fbs-interlock-gateway-cluster-redacted.yaml \
   -redact-secrets
 ```
 
@@ -1099,14 +1099,14 @@ Restart the service:
 
 ```bash
 sudo systemctl restart \
-  fbs-interlock-gateway.service
+  fbs-interlock-gateway-cluster.service
 ```
 
 Verify:
 
 ```bash
 sudo systemctl status \
-  fbs-interlock-gateway.service \
+  fbs-interlock-gateway-cluster.service \
   --no-pager \
   --full
 ```
@@ -1122,7 +1122,7 @@ Review recent logs:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster.service \
   -n 100 \
   --no-pager
 ```
@@ -1208,7 +1208,7 @@ uname -m
 Inspect the packaged executable:
 
 ```bash
-file fbs-interlock-gateway
+file fbs-interlock-gateway-cluster
 ```
 
 Rebuild with the matching target.
@@ -1219,7 +1219,7 @@ Inspect status:
 
 ```bash
 sudo systemctl status \
-  fbs-interlock-gateway.service \
+  fbs-interlock-gateway-cluster.service \
   --no-pager \
   --full
 ```
@@ -1228,7 +1228,7 @@ Review logs:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster.service \
   -n 200 \
   --no-pager
 ```
@@ -1237,7 +1237,7 @@ Restart:
 
 ```bash
 sudo systemctl restart \
-  fbs-interlock-gateway.service
+  fbs-interlock-gateway-cluster.service
 ```
 
 ## The Admin API does not respond
@@ -1246,7 +1246,7 @@ Confirm the service is active:
 
 ```bash
 sudo systemctl is-active \
-  fbs-interlock-gateway.service
+  fbs-interlock-gateway-cluster.service
 ```
 
 Confirm port `18090` is listening:
@@ -1283,23 +1283,23 @@ Test access as the service account:
 
 ```bash
 sudo -u fbs-gateway test -r \
-  /var/lib/fbs-interlock-gateway/gateway.sqlite3
+  /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
 
 sudo -u fbs-gateway test -w \
-  /var/lib/fbs-interlock-gateway/gateway.sqlite3
+  /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
 
 sudo -u fbs-gateway test -r \
-  /etc/fbs-interlock-gateway/config.yaml
+  /etc/fbs-interlock-gateway-cluster/config.yaml
 
 sudo -u fbs-gateway test -r \
-  /etc/fbs-interlock-gateway/tls/gateway-client.key
+  /etc/fbs-interlock-gateway-cluster/tls/gateway-client.key
 ```
 
 Inspect ownership and modes:
 
 ```bash
 sudo namei -l \
-  /etc/fbs-interlock-gateway/tls/gateway-client.key
+  /etc/fbs-interlock-gateway-cluster/tls/gateway-client.key
 ```
 
 Re-run the selected installer to restore intended state-directory access, ownership, and permissions without replacing the authoritative database or installed TLS identity.
@@ -1325,7 +1325,7 @@ Confirm:
 
 ```bash
 sudo systemctl status \
-  fbs-interlock-gateway-update.timer
+  fbs-interlock-gateway-cluster-update.timer
 ```
 
 Restore production updates by running:
@@ -1340,7 +1340,7 @@ Review:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway-update.service \
+  -u fbs-interlock-gateway-cluster-update.service \
   --no-pager \
   --full
 ```
@@ -1363,8 +1363,8 @@ Review both units:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway-update.service \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster-update.service \
+  -u fbs-interlock-gateway-cluster.service \
   --since "1 hour ago" \
   --no-pager
 ```
@@ -1393,7 +1393,7 @@ Confirm the installed files:
 
 ```bash
 sudo ls -l \
-  /etc/fbs-interlock-gateway/tls/
+  /etc/fbs-interlock-gateway-cluster/tls/
 ```
 
 Verify:
@@ -1419,7 +1419,7 @@ Search the journal:
 
 ```bash
 sudo journalctl \
-  -u fbs-interlock-gateway.service \
+  -u fbs-interlock-gateway-cluster.service \
   --since "24 hours ago" \
   --no-pager |
 grep -F \
@@ -1451,15 +1451,15 @@ The installed uninstaller removes the gateway executable, updater, systemd units
 Run the installed copy:
 
 ```bash
-sudo /opt/fbs-interlock-gateway/uninstall.sh
+sudo /opt/fbs-interlock-gateway-cluster/uninstall.sh
 ```
 
 The standard uninstall preserves:
 
 ```text
-/var/lib/fbs-interlock-gateway/gateway.sqlite3
-/etc/fbs-interlock-gateway/config.yaml
-/etc/fbs-interlock-gateway/tls/
+/var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3
+/etc/fbs-interlock-gateway-cluster/config.yaml
+/etc/fbs-interlock-gateway-cluster/tls/
 ```
 
 The SQLite database remains the authoritative configuration. The YAML file remains the first-run/rollback compatibility copy.
@@ -1473,15 +1473,15 @@ Existing journald entries remain subject to the host's normal journal retention 
 Run:
 
 ```bash
-sudo /opt/fbs-interlock-gateway/uninstall.sh \
+sudo /opt/fbs-interlock-gateway-cluster/uninstall.sh \
   --purge
 ```
 
 Purge mode also removes:
 
 ```text
-/etc/fbs-interlock-gateway/
-/var/lib/fbs-interlock-gateway/
+/etc/fbs-interlock-gateway-cluster/
+/var/lib/fbs-interlock-gateway-cluster/
 ```
 
 This deletes `gateway.sqlite3`, the YAML rollback mirror, and installed TLS material. The service user and group remain preserved.
@@ -1512,19 +1512,19 @@ sudo ./uninstall.sh \
 | Build ARM64 package | `make clean && make build-linux-arm64` |
 | Production install | `sudo ./install.sh` |
 | Development install | `sudo ./install-dev.sh` |
-| Check gateway service | `sudo systemctl status fbs-interlock-gateway.service --no-pager --full` |
-| Check update timer | `sudo systemctl status fbs-interlock-gateway-update.timer --no-pager --full` |
-| Restart gateway | `sudo systemctl restart fbs-interlock-gateway.service` |
-| Run updater manually | `sudo /opt/fbs-interlock-gateway/update.sh` |
+| Check gateway service | `sudo systemctl status fbs-interlock-gateway-cluster.service --no-pager --full` |
+| Check update timer | `sudo systemctl status fbs-interlock-gateway-cluster-update.timer --no-pager --full` |
+| Restart gateway | `sudo systemctl restart fbs-interlock-gateway-cluster.service` |
+| Run updater manually | `sudo /opt/fbs-interlock-gateway-cluster/update.sh` |
 | Read Admin cache | `curl -i http://127.0.0.1:18090/api/status` |
 | Refresh all tools | `curl -i "http://127.0.0.1:18090/api/status?refresh=1"` |
 | Show UFW status | `sudo ufw status verbose` |
-| Follow gateway logs | `sudo journalctl -u fbs-interlock-gateway.service -f` |
-| View updater logs | `sudo journalctl -u fbs-interlock-gateway-update.service --no-pager` |
-| Export authoritative config | `sudo /opt/fbs-interlock-gateway/fbs-interlock-gateway config export -db /var/lib/fbs-interlock-gateway/gateway.sqlite3 -output /tmp/fbs-interlock-gateway.yaml` |
-| Import edited config | `sudo /opt/fbs-interlock-gateway/fbs-interlock-gateway config import -db /var/lib/fbs-interlock-gateway/gateway.sqlite3 -input /tmp/fbs-interlock-gateway.yaml -mirror-config /etc/fbs-interlock-gateway/config.yaml` |
-| Standard uninstall | `sudo /opt/fbs-interlock-gateway/uninstall.sh` |
-| Purge uninstall | `sudo /opt/fbs-interlock-gateway/uninstall.sh --purge` |
+| Follow gateway logs | `sudo journalctl -u fbs-interlock-gateway-cluster.service -f` |
+| View updater logs | `sudo journalctl -u fbs-interlock-gateway-cluster-update.service --no-pager` |
+| Export authoritative config | `sudo /opt/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster config export -db /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3 -output /tmp/fbs-interlock-gateway-cluster.yaml` |
+| Import edited config | `sudo /opt/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster config import -db /var/lib/fbs-interlock-gateway-cluster/gateway.sqlite3 -input /tmp/fbs-interlock-gateway-cluster.yaml -mirror-config /etc/fbs-interlock-gateway-cluster/config.yaml` |
+| Standard uninstall | `sudo /opt/fbs-interlock-gateway-cluster/uninstall.sh` |
+| Purge uninstall | `sudo /opt/fbs-interlock-gateway-cluster/uninstall.sh --purge` |
 
 ---
 

@@ -13,7 +13,7 @@ its terms.
 
 **“Licensor”** means `William Veith`.
 
-**“Covered Materials”** means the `fbs-interlock-gateway` software and all
+**“Covered Materials”** means the `fbs-interlock-gateway-cluster` software and all
 associated source code, object code, scripts, service definitions, deployment
 materials, documentation, hardware drawings, wiring diagrams, enclosure-label
 artwork, and other materials distributed with this License.

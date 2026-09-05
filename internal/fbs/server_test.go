@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/config"
-	"github.com/williamveith/fbs-interlock-gateway/internal/shelly"
-	statusstore "github.com/williamveith/fbs-interlock-gateway/internal/status"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/shelly"
+	statusstore "github.com/williamveith/fbs-interlock-gateway-cluster/internal/status"
 )
 
 type fakeShellyClient struct {

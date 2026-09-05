@@ -17,7 +17,7 @@ func TestVerifyUpdateChecksumCommandValidSignature(t *testing.T) {
 	publicKey, privateKey := newTestSigningKey(t)
 
 	const (
-		asset    = "fbs-interlock-gateway-linux-amd64"
+		asset    = "fbs-interlock-gateway-cluster-linux-amd64"
 		checksum = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	)
 
@@ -47,7 +47,7 @@ func TestVerifyUpdateChecksumCommandRejectsModifiedChecksum(t *testing.T) {
 
 	publicKey, privateKey := newTestSigningKey(t)
 
-	const asset = "fbs-interlock-gateway-linux-amd64"
+	const asset = "fbs-interlock-gateway-cluster-linux-amd64"
 
 	original := []byte(
 		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  " +
@@ -81,7 +81,7 @@ func TestVerifyUpdateChecksumCommandRejectsModifiedSignature(t *testing.T) {
 
 	publicKey, privateKey := newTestSigningKey(t)
 
-	const asset = "fbs-interlock-gateway-linux-amd64"
+	const asset = "fbs-interlock-gateway-cluster-linux-amd64"
 
 	checksumData := []byte(
 		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  " +
@@ -113,7 +113,7 @@ func TestVerifyUpdateChecksumCommandRejectsWrongAsset(t *testing.T) {
 
 	publicKey, privateKey := newTestSigningKey(t)
 
-	const signedAsset = "fbs-interlock-gateway-linux-amd64"
+	const signedAsset = "fbs-interlock-gateway-cluster-linux-amd64"
 
 	checksumData := []byte(
 		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  " +
@@ -129,13 +129,13 @@ func TestVerifyUpdateChecksumCommandRejectsWrongAsset(t *testing.T) {
 	_, err := VerifyUpdateChecksumCommand([]string{
 		"--checksum", checksumPath,
 		"--signature", signaturePath,
-		"--asset", "fbs-interlock-gateway-linux-arm64",
+		"--asset", "fbs-interlock-gateway-cluster-linux-arm64",
 	})
 	if err == nil {
 		t.Fatal("VerifyUpdateChecksumCommand() succeeded for the wrong asset")
 	}
 
-	if !strings.Contains(err.Error(), `signed checksum is for asset "fbs-interlock-gateway-linux-amd64"`) {
+	if !strings.Contains(err.Error(), `signed checksum is for asset "fbs-interlock-gateway-cluster-linux-amd64"`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -145,7 +145,7 @@ func TestVerifyUpdateChecksumCommandRejectsInvalidSignatureLength(t *testing.T) 
 	publicKey, _ := newTestSigningKey(t)
 	withTestPublicKey(t, publicKey)
 
-	const asset = "fbs-interlock-gateway-linux-amd64"
+	const asset = "fbs-interlock-gateway-cluster-linux-amd64"
 
 	checksumData := []byte(
 		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  " +
@@ -183,15 +183,15 @@ func TestParseSignedChecksum(t *testing.T) {
 	}{
 		{
 			name:      "valid text mode checksum",
-			input:     validSHA + "  fbs-interlock-gateway-linux-amd64\n",
+			input:     validSHA + "  fbs-interlock-gateway-cluster-linux-amd64\n",
 			wantSHA:   strings.ToLower(validSHA),
-			wantAsset: "fbs-interlock-gateway-linux-amd64",
+			wantAsset: "fbs-interlock-gateway-cluster-linux-amd64",
 		},
 		{
 			name:      "valid binary mode marker",
-			input:     validSHA + " *fbs-interlock-gateway-linux-amd64\n",
+			input:     validSHA + " *fbs-interlock-gateway-cluster-linux-amd64\n",
 			wantSHA:   strings.ToLower(validSHA),
-			wantAsset: "fbs-interlock-gateway-linux-amd64",
+			wantAsset: "fbs-interlock-gateway-cluster-linux-amd64",
 		},
 		{
 			name:    "empty file",

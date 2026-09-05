@@ -11,7 +11,7 @@ The parties agree as follows.
 
 ## 1. Covered Materials
 
-“Covered Materials” means the `fbs-interlock-gateway` software and the
+“Covered Materials” means the `fbs-interlock-gateway-cluster` software and the
 associated source code, binaries, scripts, service definitions, deployment
 materials, documentation, hardware drawings, wiring diagrams, enclosure-label
 artwork, and other materials identified in **Exhibit A**.
@@ -19,7 +19,7 @@ artwork, and other materials identified in **Exhibit A**.
 The repository location is:
 
 ```text
-https://github.com/williamveith/fbs-interlock-gateway
+https://github.com/williamveith/fbs-interlock-gateway-cluster
 ```
 
 ## 2. Background and Ownership
@@ -328,7 +328,7 @@ Date: ______________________________________________________
 ## A.1 Covered Repository
 
 ```text
-Repository: https://github.com/williamveith/fbs-interlock-gateway
+Repository: https://github.com/williamveith/fbs-interlock-gateway-cluster
 Covered version, tag, or commit: [VERSION, TAG, OR COMMIT HASH]
 ```
 

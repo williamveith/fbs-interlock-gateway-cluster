@@ -17,7 +17,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/config"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
 )
 
 func testConfig(safeState string) config.Config {
@@ -530,7 +530,7 @@ func gatewayTestTLSConfig(t *testing.T) config.ShellyTLSConfig {
 	clientTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
-			CommonName: "fbs-interlock-gateway-test",
+			CommonName: "fbs-interlock-gateway-cluster-test",
 		},
 		NotBefore:   now.Add(-time.Minute),
 		NotAfter:    now.Add(time.Hour),

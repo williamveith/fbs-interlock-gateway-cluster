@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/admin"
-	"github.com/williamveith/fbs-interlock-gateway/internal/config"
-	"github.com/williamveith/fbs-interlock-gateway/internal/fbs"
-	"github.com/williamveith/fbs-interlock-gateway/internal/process"
-	"github.com/williamveith/fbs-interlock-gateway/internal/shelly"
-	"github.com/williamveith/fbs-interlock-gateway/internal/status"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/admin"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/fbs"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/process"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/shelly"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/status"
 )
 
 type ConfigPersistence interface {
@@ -150,7 +150,7 @@ func (g *Gateway) Run(ctx context.Context) error {
 		}()
 	}
 
-	log.Printf("fbs-interlock-gateway started with %d enabled tool(s)", enabledCount)
+	log.Printf("fbs-interlock-gateway-cluster started with %d enabled tool(s)", enabledCount)
 
 	select {
 	case <-ctx.Done():

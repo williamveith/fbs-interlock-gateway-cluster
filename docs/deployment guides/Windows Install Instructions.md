@@ -8,7 +8,7 @@ lang: en-US
 
 > **Purpose**
 >
-> This guide covers building, transferring, installing, validating, operating, updating, and uninstalling `fbs-interlock-gateway` on a dedicated 64-bit Windows gateway computer.
+> This guide covers building, transferring, installing, validating, operating, updating, and uninstalling `fbs-interlock-gateway-cluster` on a dedicated 64-bit Windows gateway computer.
 
 > **Security boundary**
 >
@@ -53,7 +53,7 @@ The gateway task runs as the restricted built-in `LOCAL SERVICE` account. The up
 FBS server
     -> Windows Defender Firewall source restriction
     -> Windows gateway listener port
-    -> fbs-interlock-gateway.exe
+    -> fbs-interlock-gateway-cluster.exe
     -> Shelly RPC over HTTP or HTTPS
     -> tool interlock circuit
 ```
@@ -187,7 +187,7 @@ defaults:
 The gateway task uses the configured Windows installation directory as its working directory. With the default Makefile settings, these paths resolve under:
 
 ```text
-C:\FBS\fbs-interlock-gateway\tls\
+C:\FBS\fbs-interlock-gateway-cluster\tls\
 ```
 
 # Build the Deployment Assets
@@ -212,7 +212,7 @@ The generated directory contains:
 
 ```text
 build/windows/
-├── fbs-interlock-gateway.exe
+├── fbs-interlock-gateway-cluster.exe
 ├── config.yaml
 ├── install.bat
 ├── install-dev.bat
@@ -398,7 +398,7 @@ Other ordinary local users are not granted direct access to the authoritative da
 ## Application and configuration
 
 - Creates the permanent installation directory.
-- Installs `fbs-interlock-gateway.exe`.
+- Installs `fbs-interlock-gateway-cluster.exe`.
 - Installs the `start.bat` restart supervisor.
 - Installs updater scripts only in production mode.
 - Preserves an existing `gateway.sqlite3`.
@@ -441,7 +441,7 @@ Other ordinary local users are not granted direct access to the authoritative da
 Creates:
 
 ```text
-C:\FBS\fbs-interlock-gateway\logs\
+C:\FBS\fbs-interlock-gateway-cluster\logs\
 ├── gateway.log
 ├── gateway-error.log
 ├── update.log
@@ -465,8 +465,8 @@ The preserved YAML rollback mirror and installed TLS files are not replaced duri
 With the default Makefile settings:
 
 ```text
-C:\FBS\fbs-interlock-gateway\
-├── fbs-interlock-gateway.exe
+C:\FBS\fbs-interlock-gateway-cluster\
+├── fbs-interlock-gateway-cluster.exe
 ├── gateway.sqlite3          # authoritative SQLite configuration
 ├── config.yaml              # first-run seed; later generated rollback mirror
 ├── config.yaml.bak          # previous YAML mirror when available
@@ -500,7 +500,7 @@ A development installation does not retain the managed update task.
 Timestamped executable backups created by successful update attempts are stored beside the executable:
 
 ```text
-fbs-interlock-gateway.exe.backup.YYYYMMDDTHHMMSSZ
+fbs-interlock-gateway-cluster.exe.backup.YYYYMMDDTHHMMSSZ
 ```
 
 <div class="page-break"></div>
@@ -512,7 +512,7 @@ Open PowerShell as an administrator.
 ## Check the installed version
 
 ```powershell
-& "C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe" `
+& "C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe" `
     -version
 ```
 
@@ -623,13 +623,13 @@ Confirm the required persistent files exist:
 
 ```powershell
 Get-Item `
-    C:\FBS\fbs-interlock-gateway\gateway.sqlite3
+    C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3
 
 Get-Item `
-    C:\FBS\fbs-interlock-gateway\config.yaml
+    C:\FBS\fbs-interlock-gateway-cluster\config.yaml
 
 Get-ChildItem `
-    C:\FBS\fbs-interlock-gateway\tls
+    C:\FBS\fbs-interlock-gateway-cluster\tls
 ```
 
 `gateway.sqlite3` should be non-empty. Expected TLS files are:
@@ -644,11 +644,11 @@ Inspect the database and private-key ACLs:
 
 ```powershell
 Get-Acl `
-    C:\FBS\fbs-interlock-gateway\gateway.sqlite3 |
+    C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3 |
     Format-List
 
 Get-Acl `
-    C:\FBS\fbs-interlock-gateway\tls\gateway-client.key |
+    C:\FBS\fbs-interlock-gateway-cluster\tls\gateway-client.key |
     Format-List
 ```
 
@@ -741,7 +741,7 @@ Then initiate a normal gateway status request for that tool and review the gatew
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log `
     -Tail 100
 ```
 
@@ -872,7 +872,7 @@ Follow the updater log:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\update.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\update.log `
     -Wait
 ```
 
@@ -900,7 +900,7 @@ Follow gateway standard output:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway.log `
     -Wait
 ```
 
@@ -908,7 +908,7 @@ Follow gateway errors:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log `
     -Wait
 ```
 
@@ -916,7 +916,7 @@ Follow updater output:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\update.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\update.log `
     -Wait
 ```
 
@@ -924,7 +924,7 @@ Follow updater errors:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\update-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\update-error.log `
     -Wait
 ```
 
@@ -935,13 +935,13 @@ Press `Ctrl+C` to stop following a log.
 The authoritative configuration is:
 
 ```text
-C:\FBS\fbs-interlock-gateway\gateway.sqlite3
+C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3
 ```
 
 The compatibility/rollback YAML is:
 
 ```text
-C:\FBS\fbs-interlock-gateway\config.yaml
+C:\FBS\fbs-interlock-gateway-cluster\config.yaml
 ```
 
 `config.yaml` is used as an import source only while the SQLite database is uninitialized. Once `gateway.sqlite3` contains configuration, normal startup loads SQLite and ignores manual edits to the YAML file.
@@ -963,17 +963,17 @@ Open PowerShell as an administrator.
 Export the authoritative database:
 
 ```powershell
-& 'C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe' `
+& 'C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe' `
     config export `
-    -db 'C:\FBS\fbs-interlock-gateway\gateway.sqlite3' `
-    -output "$env:TEMP\fbs-interlock-gateway.yaml"
+    -db 'C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3' `
+    -output "$env:TEMP\fbs-interlock-gateway-cluster.yaml"
 ```
 
 Edit the exported YAML:
 
 ```powershell
 Start-Process notepad.exe `
-    -ArgumentList "$env:TEMP\fbs-interlock-gateway.yaml" `
+    -ArgumentList "$env:TEMP\fbs-interlock-gateway-cluster.yaml" `
     -Verb RunAs `
     -Wait
 ```
@@ -981,11 +981,11 @@ Start-Process notepad.exe `
 Import the complete edited configuration transactionally and refresh the YAML rollback mirror:
 
 ```powershell
-& 'C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe' `
+& 'C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe' `
     config import `
-    -db 'C:\FBS\fbs-interlock-gateway\gateway.sqlite3' `
-    -input "$env:TEMP\fbs-interlock-gateway.yaml" `
-    -mirror-config 'C:\FBS\fbs-interlock-gateway\config.yaml'
+    -db 'C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3' `
+    -input "$env:TEMP\fbs-interlock-gateway-cluster.yaml" `
+    -mirror-config 'C:\FBS\fbs-interlock-gateway-cluster\config.yaml'
 ```
 
 Restart the gateway task after a successful CLI import:
@@ -1001,10 +1001,10 @@ Start-ScheduledTask `
 For review or sharing, create a redacted export:
 
 ```powershell
-& 'C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe' `
+& 'C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe' `
     config export `
-    -db 'C:\FBS\fbs-interlock-gateway\gateway.sqlite3' `
-    -output "$env:TEMP\fbs-interlock-gateway-redacted.yaml" `
+    -db 'C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3' `
+    -output "$env:TEMP\fbs-interlock-gateway-cluster-redacted.yaml" `
     -redact-secrets
 ```
 
@@ -1056,7 +1056,7 @@ It creates this application-specific allow rule:
 Display name: FBS Interlock Gateway - Authorized FBS Source
 Direction:    Inbound
 Protocol:     TCP
-Program:      C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe
+Program:      C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe
 Local ports:  8081-8981
 Remote IP:    146.6.76.61
 Profiles:     Any
@@ -1153,7 +1153,7 @@ Review the gateway error log:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log `
     -Tail 100
 ```
 
@@ -1188,7 +1188,7 @@ Review:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log `
     -Tail 100
 ```
 
@@ -1210,15 +1210,15 @@ Inspect the ACLs:
 
 ```powershell
 Get-Acl `
-    C:\FBS\fbs-interlock-gateway\gateway.sqlite3 |
+    C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3 |
     Format-List
 
 Get-Acl `
-    C:\FBS\fbs-interlock-gateway\config.yaml |
+    C:\FBS\fbs-interlock-gateway-cluster\config.yaml |
     Format-List
 
 Get-Acl `
-    C:\FBS\fbs-interlock-gateway\tls\gateway-client.key |
+    C:\FBS\fbs-interlock-gateway-cluster\tls\gateway-client.key |
     Format-List
 ```
 
@@ -1274,7 +1274,7 @@ Review:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\update-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\update-error.log `
     -Tail 100
 ```
 
@@ -1290,11 +1290,11 @@ Review:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\update-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\update-error.log `
     -Tail 100
 
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log `
     -Tail 100
 ```
 
@@ -1325,7 +1325,7 @@ Confirm the installed TLS files exist:
 
 ```powershell
 Get-ChildItem `
-    C:\FBS\fbs-interlock-gateway\tls
+    C:\FBS\fbs-interlock-gateway-cluster\tls
 ```
 
 Check the gateway error log for:
@@ -1345,7 +1345,7 @@ Review gateway errors:
 
 ```powershell
 Get-Content `
-    C:\FBS\fbs-interlock-gateway\logs\gateway-error.log `
+    C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log `
     -Tail 100
 ```
 
@@ -1404,10 +1404,10 @@ Standard uninstall removes:
 It preserves:
 
 ```text
-C:\FBS\fbs-interlock-gateway\gateway.sqlite3
-C:\FBS\fbs-interlock-gateway\config.yaml
-C:\FBS\fbs-interlock-gateway\tls\
-C:\FBS\fbs-interlock-gateway\logs\
+C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3
+C:\FBS\fbs-interlock-gateway-cluster\config.yaml
+C:\FBS\fbs-interlock-gateway-cluster\tls\
+C:\FBS\fbs-interlock-gateway-cluster\logs\
 ```
 
 `gateway.sqlite3` remains the authoritative configuration; `config.yaml` remains the first-run/rollback compatibility copy.
@@ -1465,11 +1465,11 @@ No matching tasks should remain after a successful uninstall.
 | Read Admin cache | `Invoke-RestMethod http://127.0.0.1:18090/api/status` |
 | Refresh all tools | `Invoke-RestMethod "http://127.0.0.1:18090/api/status?refresh=1"` |
 | Show firewall rule | `Get-NetFirewallRule -DisplayName "FBS Interlock Gateway - Authorized FBS Source"` |
-| Follow gateway logs | `Get-Content C:\FBS\fbs-interlock-gateway\logs\gateway.log -Wait` |
-| Follow gateway errors | `Get-Content C:\FBS\fbs-interlock-gateway\logs\gateway-error.log -Wait` |
-| Follow update logs | `Get-Content C:\FBS\fbs-interlock-gateway\logs\update.log -Wait` |
-| Export authoritative config | `& 'C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe' config export -db 'C:\FBS\fbs-interlock-gateway\gateway.sqlite3' -output "$env:TEMP\fbs-interlock-gateway.yaml"` |
-| Import edited config | `& 'C:\FBS\fbs-interlock-gateway\fbs-interlock-gateway.exe' config import -db 'C:\FBS\fbs-interlock-gateway\gateway.sqlite3' -input "$env:TEMP\fbs-interlock-gateway.yaml" -mirror-config 'C:\FBS\fbs-interlock-gateway\config.yaml'` |
+| Follow gateway logs | `Get-Content C:\FBS\fbs-interlock-gateway-cluster\logs\gateway.log -Wait` |
+| Follow gateway errors | `Get-Content C:\FBS\fbs-interlock-gateway-cluster\logs\gateway-error.log -Wait` |
+| Follow update logs | `Get-Content C:\FBS\fbs-interlock-gateway-cluster\logs\update.log -Wait` |
+| Export authoritative config | `& 'C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe' config export -db 'C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3' -output "$env:TEMP\fbs-interlock-gateway-cluster.yaml"` |
+| Import edited config | `& 'C:\FBS\fbs-interlock-gateway-cluster\fbs-interlock-gateway-cluster.exe' config import -db 'C:\FBS\fbs-interlock-gateway-cluster\gateway.sqlite3' -input "$env:TEMP\fbs-interlock-gateway-cluster.yaml" -mirror-config 'C:\FBS\fbs-interlock-gateway-cluster\config.yaml'` |
 | Standard uninstall | Right-click `uninstall.bat` -> **Run as administrator** |
 | Purge uninstall | `uninstall.bat --purge` |
 

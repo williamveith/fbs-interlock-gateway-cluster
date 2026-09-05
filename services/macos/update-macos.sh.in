@@ -10,7 +10,7 @@ LAUNCHD_LABEL="@MACOS_LAUNCHD_LABEL@"
 PLIST_PATH="/Library/LaunchDaemons/${LAUNCHD_LABEL}.plist"
 ADMIN_STATUS_URL="http://127.0.0.1:18090/api/status"
 
-REPO="williamveith/fbs-interlock-gateway"
+REPO="williamveith/fbs-interlock-gateway-cluster"
 MAX_LOG_BYTES=10485760
 LOG_ARCHIVE_COUNT=30
 

@@ -8,7 +8,7 @@ lang: en-US
 
 > **Purpose**
 >
-> This guide covers building, transferring, installing, validating, operating, updating, and uninstalling `fbs-interlock-gateway` on a dedicated macOS gateway computer.
+> This guide covers building, transferring, installing, validating, operating, updating, and uninstalling `fbs-interlock-gateway-cluster` on a dedicated macOS gateway computer.
 
 > **Security boundary**
 >
@@ -52,7 +52,7 @@ The macOS deployment uses two system-wide `launchd` jobs:
 FBS server
     -> managed macOS pf source restriction
     -> macOS gateway listener port
-    -> fbs-interlock-gateway
+    -> fbs-interlock-gateway-cluster
     -> Shelly RPC over HTTP or HTTPS
     -> tool interlock circuit
 ```
@@ -118,7 +118,7 @@ Gateway listener range: TCP 8081:8981
 Review the generated Packet Filter file before production installation:
 
 ```text
-com.williamveith.fbs-interlock-gateway.pf
+com.williamveith.fbs-interlock-gateway-cluster.pf
 ```
 
 # Prepare Gateway TLS Material
@@ -194,16 +194,16 @@ The selected deployment directory contains:
 
 ```text
 build/darwin/<architecture>/
-├── fbs-interlock-gateway
+├── fbs-interlock-gateway-cluster
 ├── config.yaml
 ├── install.sh
 ├── install-dev.sh
 ├── start.sh
 ├── uninstall.sh
 ├── update.sh
-├── com.williamveith.fbs-interlock-gateway.plist
-├── com.williamveith.fbs-interlock-gateway-update.plist
-├── com.williamveith.fbs-interlock-gateway.pf
+├── com.williamveith.fbs-interlock-gateway-cluster.plist
+├── com.williamveith.fbs-interlock-gateway-cluster-update.plist
+├── com.williamveith.fbs-interlock-gateway-cluster.pf
 ├── tls/
 │   ├── server-ca.crt
 │   ├── gateway-client.crt
@@ -336,7 +336,7 @@ chmod +x \
   start.sh \
   uninstall.sh \
   update.sh \
-  fbs-interlock-gateway
+  fbs-interlock-gateway-cluster
 ```
 
 Run the selected installer.
@@ -383,11 +383,11 @@ The installer performs the following operations.
 
 ## Application and configuration
 
-- Installs the binary and startup wrapper under `/usr/local/libexec/fbs-interlock-gateway/`
-- Runs the gateway with `/Library/Application Support/fbs-interlock-gateway` as its working directory
+- Installs the binary and startup wrapper under `/usr/local/libexec/fbs-interlock-gateway-cluster/`
+- Runs the gateway with `/Library/Application Support/fbs-interlock-gateway-cluster` as its working directory
 - Starts the gateway with explicit `-config` and `-db` paths
 - Installs or preserves `config.yaml` with service-account access and mode `0640`
-- Uses `/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3` as the authoritative database path
+- Uses `/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3` as the authoritative database path
 - On first successful startup, imports the legacy YAML if the database is uninitialized
 - Leaves the original human-authored YAML untouched during the first import
 - Treats `gateway.sqlite3` as authoritative after initialization
@@ -396,7 +396,7 @@ The installer performs the following operations.
 
 ## Gateway TLS files
 
-- Creates `/Library/Application Support/fbs-interlock-gateway/tls/`
+- Creates `/Library/Application Support/fbs-interlock-gateway-cluster/tls/`
 - Installs new runtime TLS files with `root:_fbs-gateway` ownership and mode `0640`
 - Preserves existing installed TLS files during reinstallation
 - Verifies that `_fbs-gateway` can read the YAML rollback mirror and every TLS file
@@ -405,7 +405,7 @@ The installer performs the following operations.
 
 - Stops the existing gateway before taking the installation rollback copy of `gateway.sqlite3`
 - Backs up the database when present
-- Verifies that `_fbs-gateway` can create and remove files in `/Library/Application Support/fbs-interlock-gateway/`
+- Verifies that `_fbs-gateway` can create and remove files in `/Library/Application Support/fbs-interlock-gateway-cluster/`
 - Starts the gateway and waits for the Admin API
 - Verifies that `gateway.sqlite3` exists, is non-empty, and is readable and writable by `_fbs-gateway`
 - Removes transient SQLite sidecar files before restoring a database during installation rollback
@@ -437,7 +437,7 @@ The installer performs the following operations.
 Creates:
 
 ```text
-/Library/Logs/fbs-interlock-gateway/
+/Library/Logs/fbs-interlock-gateway-cluster/
 ├── gateway.log
 ├── gateway-error.log
 ├── update.log
@@ -459,8 +459,8 @@ The preserved YAML rollback mirror and installed TLS files are not replaced duri
 ## Application directory
 
 ```text
-/usr/local/libexec/fbs-interlock-gateway/
-├── fbs-interlock-gateway
+/usr/local/libexec/fbs-interlock-gateway-cluster/
+├── fbs-interlock-gateway-cluster
 ├── start.sh
 └── update.sh                 # production mode only
 ```
@@ -468,7 +468,7 @@ The preserved YAML rollback mirror and installed TLS files are not replaced duri
 ## Authoritative configuration, rollback mirror, and TLS
 
 ```text
-/Library/Application Support/fbs-interlock-gateway/
+/Library/Application Support/fbs-interlock-gateway-cluster/
 ├── gateway.sqlite3           # authoritative SQLite configuration
 ├── config.yaml               # first-run seed; later generated rollback mirror
 ├── config.yaml.bak           # previous YAML mirror when available
@@ -484,8 +484,8 @@ After `gateway.sqlite3` is initialized, manual edits to `config.yaml` are ignore
 
 ```text
 /Library/LaunchDaemons/
-├── com.williamveith.fbs-interlock-gateway.plist
-└── com.williamveith.fbs-interlock-gateway-update.plist
+├── com.williamveith.fbs-interlock-gateway-cluster.plist
+└── com.williamveith.fbs-interlock-gateway-cluster-update.plist
 ```
 
 The update plist is absent after a development installation.
@@ -493,7 +493,7 @@ The update plist is absent after a development installation.
 ## Packet Filter
 
 ```text
-/etc/pf.anchors/com.williamveith.fbs-interlock-gateway
+/etc/pf.anchors/com.williamveith.fbs-interlock-gateway-cluster
 /etc/pf.conf
 ```
 
@@ -502,7 +502,7 @@ The installer places a clearly marked managed anchor block in `/etc/pf.conf` rat
 ## Logs
 
 ```text
-/Library/Logs/fbs-interlock-gateway/
+/Library/Logs/fbs-interlock-gateway-cluster/
 ├── gateway.log
 ├── gateway-error.log
 ├── update.log
@@ -516,7 +516,7 @@ The installer places a clearly marked managed anchor block in `/etc/pf.conf` rat
 ## Check the installed version
 
 ```bash
-sudo "/usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway" \
+sudo "/usr/local/libexec/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster" \
   -version
 ```
 
@@ -524,7 +524,7 @@ sudo "/usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway" \
 
 ```bash
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 Look for a running state and process identifier:
@@ -540,7 +540,7 @@ Production installation:
 
 ```bash
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway-update
+  system/com.williamveith.fbs-interlock-gateway-cluster-update
 ```
 
 A development installation should not have this job loaded.
@@ -593,33 +593,33 @@ Confirm the authoritative database exists and is non-empty:
 
 ```bash
 sudo test -s \
-  "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3"
 ```
 
 Confirm `_fbs-gateway` can read and write it:
 
 ```bash
 sudo -u _fbs-gateway test -r \
-  "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3"
 
 sudo -u _fbs-gateway test -w \
-  "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3"
 ```
 
 Confirm the service account can read the YAML rollback mirror and runtime TLS files:
 
 ```bash
 sudo -u _fbs-gateway test -r \
-  "/Library/Application Support/fbs-interlock-gateway/config.yaml"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/config.yaml"
 
 sudo -u _fbs-gateway test -r \
-  "/Library/Application Support/fbs-interlock-gateway/tls/server-ca.crt"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/tls/server-ca.crt"
 
 sudo -u _fbs-gateway test -r \
-  "/Library/Application Support/fbs-interlock-gateway/tls/gateway-client.crt"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/tls/gateway-client.crt"
 
 sudo -u _fbs-gateway test -r \
-  "/Library/Application Support/fbs-interlock-gateway/tls/gateway-client.key"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/tls/gateway-client.key"
 ```
 
 Each command should exit silently with status `0`.
@@ -630,7 +630,7 @@ Display the installed anchor rules:
 
 ```bash
 sudo pfctl \
-  -a com.williamveith.fbs-interlock-gateway \
+  -a com.williamveith.fbs-interlock-gateway-cluster \
   -sr
 ```
 
@@ -644,7 +644,7 @@ Confirm the managed block exists:
 
 ```bash
 sudo grep -A 4 -B 1 \
-  "BEGIN fbs-interlock-gateway managed anchor" \
+  "BEGIN fbs-interlock-gateway-cluster managed anchor" \
   /etc/pf.conf
 ```
 
@@ -652,7 +652,7 @@ sudo grep -A 4 -B 1 \
 
 ```bash
 sudo /usr/libexec/ApplicationFirewall/socketfilterfw \
-  --listapps | grep -A 3 fbs-interlock-gateway
+  --listapps | grep -A 3 fbs-interlock-gateway-cluster
 ```
 
 # Verify Tool Communication
@@ -695,9 +695,9 @@ Expected FBS-compatible responses:
 
 ```bash
 curl \
-  --cacert "/Library/Application Support/fbs-interlock-gateway/tls/server-ca.crt" \
-  --cert "/Library/Application Support/fbs-interlock-gateway/tls/gateway-client.crt" \
-  --key "/Library/Application Support/fbs-interlock-gateway/tls/gateway-client.key" \
+  --cacert "/Library/Application Support/fbs-interlock-gateway-cluster/tls/server-ca.crt" \
+  --cert "/Library/Application Support/fbs-interlock-gateway-cluster/tls/gateway-client.crt" \
+  --key "/Library/Application Support/fbs-interlock-gateway-cluster/tls/gateway-client.key" \
   "https://<shelly-ddns-host>/rpc/Switch.GetStatus?id=0"
 ```
 
@@ -707,9 +707,9 @@ Add Digest Authentication when the Shelly also requires it:
 curl \
   --anyauth \
   -u "admin:<password>" \
-  --cacert "/Library/Application Support/fbs-interlock-gateway/tls/server-ca.crt" \
-  --cert "/Library/Application Support/fbs-interlock-gateway/tls/gateway-client.crt" \
-  --key "/Library/Application Support/fbs-interlock-gateway/tls/gateway-client.key" \
+  --cacert "/Library/Application Support/fbs-interlock-gateway-cluster/tls/server-ca.crt" \
+  --cert "/Library/Application Support/fbs-interlock-gateway-cluster/tls/gateway-client.crt" \
+  --key "/Library/Application Support/fbs-interlock-gateway-cluster/tls/gateway-client.key" \
   "https://<shelly-ddns-host>/rpc/Switch.GetStatus?id=0"
 ```
 
@@ -762,13 +762,13 @@ http://127.0.0.1:18090
 Production installation creates:
 
 ```text
-system/com.williamveith.fbs-interlock-gateway-update
+system/com.williamveith.fbs-interlock-gateway-cluster-update
 ```
 
 The update LaunchDaemon runs at minute `17` of every hour and executes:
 
 ```text
-/usr/local/libexec/fbs-interlock-gateway/update.sh
+/usr/local/libexec/fbs-interlock-gateway-cluster/update.sh
 ```
 
 ## Update behavior
@@ -814,7 +814,7 @@ When either file reaches `10 MiB`, it:
 ## Run maintenance manually
 
 ```bash
-sudo "/usr/local/libexec/fbs-interlock-gateway/update.sh"
+sudo "/usr/local/libexec/fbs-interlock-gateway-cluster/update.sh"
 ```
 
 ## Disable managed updates for development
@@ -838,35 +838,35 @@ sudo ./install.sh
 Gateway standard output:
 
 ```text
-/Library/Logs/fbs-interlock-gateway/gateway.log
+/Library/Logs/fbs-interlock-gateway-cluster/gateway.log
 ```
 
 Gateway standard error:
 
 ```text
-/Library/Logs/fbs-interlock-gateway/gateway-error.log
+/Library/Logs/fbs-interlock-gateway-cluster/gateway-error.log
 ```
 
 Updater standard output:
 
 ```text
-/Library/Logs/fbs-interlock-gateway/update.log
+/Library/Logs/fbs-interlock-gateway-cluster/update.log
 ```
 
 Updater standard error:
 
 ```text
-/Library/Logs/fbs-interlock-gateway/update-error.log
+/Library/Logs/fbs-interlock-gateway-cluster/update-error.log
 ```
 
 Follow all logs:
 
 ```bash
 sudo tail -F \
-  "/Library/Logs/fbs-interlock-gateway/gateway.log" \
-  "/Library/Logs/fbs-interlock-gateway/gateway-error.log" \
-  "/Library/Logs/fbs-interlock-gateway/update.log" \
-  "/Library/Logs/fbs-interlock-gateway/update-error.log"
+  "/Library/Logs/fbs-interlock-gateway-cluster/gateway.log" \
+  "/Library/Logs/fbs-interlock-gateway-cluster/gateway-error.log" \
+  "/Library/Logs/fbs-interlock-gateway-cluster/update.log" \
+  "/Library/Logs/fbs-interlock-gateway-cluster/update-error.log"
 ```
 
 Useful gateway markers include:
@@ -895,13 +895,13 @@ phase=response_body
 The authoritative configuration is:
 
 ```text
-/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3
+/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3
 ```
 
 The compatibility/rollback YAML is:
 
 ```text
-/Library/Application Support/fbs-interlock-gateway/config.yaml
+/Library/Application Support/fbs-interlock-gateway-cluster/config.yaml
 ```
 
 `config.yaml` is used as an import source only while the SQLite database is uninitialized. Once `gateway.sqlite3` contains configuration, normal startup loads SQLite and ignores manual edits to the YAML file.
@@ -919,42 +919,42 @@ The Admin UI validates the complete proposed configuration, preserves stored pas
 Export the authoritative database:
 
 ```bash
-sudo "/usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway" \
+sudo "/usr/local/libexec/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster" \
   config export \
-  -db "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3" \
-  -output /tmp/fbs-interlock-gateway.yaml
+  -db "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3" \
+  -output /tmp/fbs-interlock-gateway-cluster.yaml
 ```
 
 Edit the exported YAML:
 
 ```bash
-sudo nano /tmp/fbs-interlock-gateway.yaml
+sudo nano /tmp/fbs-interlock-gateway-cluster.yaml
 ```
 
 Import the complete edited configuration transactionally and refresh the YAML rollback mirror:
 
 ```bash
-sudo "/usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway" \
+sudo "/usr/local/libexec/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster" \
   config import \
-  -db "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3" \
-  -input /tmp/fbs-interlock-gateway.yaml \
-  -mirror-config "/Library/Application Support/fbs-interlock-gateway/config.yaml"
+  -db "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3" \
+  -input /tmp/fbs-interlock-gateway-cluster.yaml \
+  -mirror-config "/Library/Application Support/fbs-interlock-gateway-cluster/config.yaml"
 ```
 
 Restart the gateway after a successful CLI import:
 
 ```bash
 sudo launchctl kickstart -k \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 For review or sharing, create a redacted export:
 
 ```bash
-sudo "/usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway" \
+sudo "/usr/local/libexec/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster" \
   config export \
-  -db "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3" \
-  -output /tmp/fbs-interlock-gateway-redacted.yaml \
+  -db "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3" \
+  -output /tmp/fbs-interlock-gateway-cluster-redacted.yaml \
   -redact-secrets
 ```
 
@@ -972,22 +972,22 @@ Do not import a redacted export as production configuration; stored passwords ar
 
 ```bash
 sudo launchctl kickstart -k \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 Verify:
 
 ```bash
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 Review recent logs:
 
 ```bash
 sudo tail -n 100 \
-  "/Library/Logs/fbs-interlock-gateway/gateway.log" \
-  "/Library/Logs/fbs-interlock-gateway/gateway-error.log"
+  "/Library/Logs/fbs-interlock-gateway-cluster/gateway.log" \
+  "/Library/Logs/fbs-interlock-gateway-cluster/gateway-error.log"
 ```
 
 # Firewall and Packet Filter Behavior
@@ -1003,7 +1003,7 @@ The executable is added to the macOS Application Firewall allow list. This contr
 The installer creates:
 
 ```text
-/etc/pf.anchors/com.williamveith.fbs-interlock-gateway
+/etc/pf.anchors/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 and adds a managed block to:
@@ -1044,7 +1044,7 @@ A locally built binary copied by USB normally does not require additional steps.
 Inspect quarantine attributes when troubleshooting:
 
 ```bash
-xattr -l fbs-interlock-gateway
+xattr -l fbs-interlock-gateway-cluster
 ```
 
 Remove quarantine recursively only when the files came from the trusted build process:
@@ -1090,7 +1090,7 @@ uname -m
 Inspect the packaged binary:
 
 ```bash
-file fbs-interlock-gateway
+file fbs-interlock-gateway-cluster
 ```
 
 Use `build/darwin/arm64/` for `arm64` and `build/darwin/amd64/` for `x86_64`.
@@ -1099,22 +1099,22 @@ Use `build/darwin/arm64/` for `arm64` and `build/darwin/amd64/` for `x86_64`.
 
 ```bash
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 Review logs:
 
 ```bash
 sudo tail -n 200 \
-  "/Library/Logs/fbs-interlock-gateway/gateway.log" \
-  "/Library/Logs/fbs-interlock-gateway/gateway-error.log"
+  "/Library/Logs/fbs-interlock-gateway-cluster/gateway.log" \
+  "/Library/Logs/fbs-interlock-gateway-cluster/gateway-error.log"
 ```
 
 Restart:
 
 ```bash
 sudo launchctl kickstart -k \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 ```
 
 ## Installer rolls back
@@ -1156,7 +1156,7 @@ Display the gateway anchor:
 
 ```bash
 sudo pfctl \
-  -a com.williamveith.fbs-interlock-gateway \
+  -a com.williamveith.fbs-interlock-gateway-cluster \
   -sr
 ```
 
@@ -1180,7 +1180,7 @@ Then verify:
 
 ```bash
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway-update
+  system/com.williamveith.fbs-interlock-gateway-cluster-update
 ```
 
 ## Updater reports another update is running
@@ -1188,7 +1188,7 @@ sudo launchctl print \
 The updater uses:
 
 ```text
-/usr/local/libexec/fbs-interlock-gateway/.update-lock
+/usr/local/libexec/fbs-interlock-gateway-cluster/.update-lock
 ```
 
 A concurrent updater exits safely. If no update process exists and a stale lock remains after an abnormal termination, inspect the directory before removing it.
@@ -1198,8 +1198,8 @@ A concurrent updater exits safely. If no update process exists and a stale lock 
 Review:
 
 ```text
-/Library/Logs/fbs-interlock-gateway/update.log
-/Library/Logs/fbs-interlock-gateway/update-error.log
+/Library/Logs/fbs-interlock-gateway-cluster/update.log
+/Library/Logs/fbs-interlock-gateway-cluster/update-error.log
 ```
 
 Common causes include:
@@ -1230,7 +1230,7 @@ Confirm installed files:
 
 ```bash
 sudo ls -l \
-  "/Library/Application Support/fbs-interlock-gateway/tls"
+  "/Library/Application Support/fbs-interlock-gateway-cluster/tls"
 ```
 
 Verify:
@@ -1285,7 +1285,7 @@ Standard uninstall:
 The preserved authoritative database remains at:
 
 ```text
-/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3
+/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3
 ```
 
 ## Purge persistent data
@@ -1297,8 +1297,8 @@ sudo ./uninstall.sh --purge
 Purge performs the standard uninstall and also removes:
 
 ```text
-/Library/Application Support/fbs-interlock-gateway/
-/Library/Logs/fbs-interlock-gateway/
+/Library/Application Support/fbs-interlock-gateway-cluster/
+/Library/Logs/fbs-interlock-gateway-cluster/
 ```
 
 This deletes `gateway.sqlite3`, the YAML rollback mirror, installed TLS files, and logs. The hidden service account is still preserved for safe reinstallation.
@@ -1311,10 +1311,10 @@ Verify removal:
 
 ```bash
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway
+  system/com.williamveith.fbs-interlock-gateway-cluster
 
 sudo launchctl print \
-  system/com.williamveith.fbs-interlock-gateway-update
+  system/com.williamveith.fbs-interlock-gateway-cluster-update
 ```
 
 Missing-service errors are expected after successful removal.
@@ -1329,17 +1329,17 @@ Missing-service errors are expected after successful removal.
 | Build Intel package | `make clean && make build-darwin-amd64` |
 | Production install | `sudo ./install.sh` |
 | Development install | `sudo ./install-dev.sh` |
-| Check gateway service | `sudo launchctl print system/com.williamveith.fbs-interlock-gateway` |
-| Check updater | `sudo launchctl print system/com.williamveith.fbs-interlock-gateway-update` |
-| Restart gateway | `sudo launchctl kickstart -k system/com.williamveith.fbs-interlock-gateway` |
-| Run updater manually | `sudo /usr/local/libexec/fbs-interlock-gateway/update.sh` |
+| Check gateway service | `sudo launchctl print system/com.williamveith.fbs-interlock-gateway-cluster` |
+| Check updater | `sudo launchctl print system/com.williamveith.fbs-interlock-gateway-cluster-update` |
+| Restart gateway | `sudo launchctl kickstart -k system/com.williamveith.fbs-interlock-gateway-cluster` |
+| Run updater manually | `sudo /usr/local/libexec/fbs-interlock-gateway-cluster/update.sh` |
 | Read Admin cache | `curl -i http://127.0.0.1:18090/api/status` |
 | Refresh all tools | `curl -i "http://127.0.0.1:18090/api/status?refresh=1"` |
-| Show `pf` anchor | `sudo pfctl -a com.williamveith.fbs-interlock-gateway -sr` |
-| Follow gateway logs | `sudo tail -F "/Library/Logs/fbs-interlock-gateway/gateway.log" "/Library/Logs/fbs-interlock-gateway/gateway-error.log"` |
-| Follow update logs | `sudo tail -F "/Library/Logs/fbs-interlock-gateway/update.log" "/Library/Logs/fbs-interlock-gateway/update-error.log"` |
-| Export authoritative config | `sudo /usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway config export -db "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3" -output /tmp/fbs-interlock-gateway.yaml` |
-| Import edited config | `sudo /usr/local/libexec/fbs-interlock-gateway/fbs-interlock-gateway config import -db "/Library/Application Support/fbs-interlock-gateway/gateway.sqlite3" -input /tmp/fbs-interlock-gateway.yaml -mirror-config "/Library/Application Support/fbs-interlock-gateway/config.yaml"` |
+| Show `pf` anchor | `sudo pfctl -a com.williamveith.fbs-interlock-gateway-cluster -sr` |
+| Follow gateway logs | `sudo tail -F "/Library/Logs/fbs-interlock-gateway-cluster/gateway.log" "/Library/Logs/fbs-interlock-gateway-cluster/gateway-error.log"` |
+| Follow update logs | `sudo tail -F "/Library/Logs/fbs-interlock-gateway-cluster/update.log" "/Library/Logs/fbs-interlock-gateway-cluster/update-error.log"` |
+| Export authoritative config | `sudo /usr/local/libexec/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster config export -db "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3" -output /tmp/fbs-interlock-gateway-cluster.yaml` |
+| Import edited config | `sudo /usr/local/libexec/fbs-interlock-gateway-cluster/fbs-interlock-gateway-cluster config import -db "/Library/Application Support/fbs-interlock-gateway-cluster/gateway.sqlite3" -input /tmp/fbs-interlock-gateway-cluster.yaml -mirror-config "/Library/Application Support/fbs-interlock-gateway-cluster/config.yaml"` |
 | Standard uninstall | `sudo ./uninstall.sh` |
 | Purge uninstall | `sudo ./uninstall.sh --purge` |
 

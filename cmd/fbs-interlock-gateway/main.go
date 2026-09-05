@@ -12,10 +12,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/config"
-	"github.com/williamveith/fbs-interlock-gateway/internal/configstore"
-	"github.com/williamveith/fbs-interlock-gateway/internal/gateway"
-	"github.com/williamveith/fbs-interlock-gateway/internal/updateauth"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/configstore"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/gateway"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/updateauth"
 	"gopkg.in/yaml.v3"
 )
 
@@ -55,7 +55,7 @@ func runGateway(args []string) error {
 		return err
 	}
 
-	flags := flag.NewFlagSet("fbs-interlock-gateway", flag.ContinueOnError)
+	flags := flag.NewFlagSet("fbs-interlock-gateway-cluster", flag.ContinueOnError)
 	dbPath := flags.String("db", "", "path to authoritative SQLite configuration database")
 	configPath := flags.String("config", defaults.yaml, "legacy config.yaml import path and generated rollback mirror")
 	showVersion := flags.Bool("version", false, "print version and exit")
@@ -65,7 +65,7 @@ func runGateway(args []string) error {
 	}
 
 	if *showVersion {
-		fmt.Printf("fbs-interlock-gateway version=%s commit=%s date=%s\n", version, commit, date)
+		fmt.Printf("fbs-interlock-gateway-cluster version=%s commit=%s date=%s\n", version, commit, date)
 		return nil
 	}
 
@@ -85,7 +85,7 @@ func runGateway(args []string) error {
 	}
 
 	log.Printf(
-		"fbs-interlock-gateway version=%s commit=%s date=%s db=%s legacy_config=%s",
+		"fbs-interlock-gateway-cluster version=%s commit=%s date=%s db=%s legacy_config=%s",
 		version,
 		commit,
 		date,
@@ -173,7 +173,7 @@ func defaultPaths() (paths, error) {
 
 func runConfigCommand(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: fbs-interlock-gateway config <export|import> [flags]")
+		return errors.New("usage: fbs-interlock-gateway-cluster config <export|import> [flags]")
 	}
 
 	switch args[0] {

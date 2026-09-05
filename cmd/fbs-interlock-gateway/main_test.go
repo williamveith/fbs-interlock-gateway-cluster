@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/configstore"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/configstore"
 )
 
 func TestLoadOrMigrateImportsLegacyYAMLOnce(t *testing.T) {

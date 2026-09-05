@@ -8,7 +8,7 @@ DB_PATH="${STATE_DIR}/gateway.sqlite3"
 DB_BACKUP="${STATE_DIR}/gateway.sqlite3.update-backup"
 SERVICE_NAME="${APP}.service"
 ADMIN_STATUS_URL="http://127.0.0.1:18090/api/status"
-REPO="williamveith/fbs-interlock-gateway"
+REPO="williamveith/fbs-interlock-gateway-cluster"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   if command -v pkexec >/dev/null 2>&1; then

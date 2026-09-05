@@ -19,9 +19,9 @@ func validTool(name string, port int, enabled bool) Tool {
 
 func completeTLSConfig() ShellyTLSConfig {
 	return ShellyTLSConfig{
-		ServerCAFile:   "/etc/fbs-interlock-gateway/tls/server-ca.crt",
-		ClientCertFile: "/etc/fbs-interlock-gateway/tls/gateway-client.crt",
-		ClientKeyFile:  "/etc/fbs-interlock-gateway/tls/gateway-client.key",
+		ServerCAFile:   "/etc/fbs-interlock-gateway-cluster/tls/server-ca.crt",
+		ClientCertFile: "/etc/fbs-interlock-gateway-cluster/tls/gateway-client.crt",
+		ClientKeyFile:  "/etc/fbs-interlock-gateway-cluster/tls/gateway-client.key",
 	}
 }
 

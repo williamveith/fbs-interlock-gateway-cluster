@@ -13,7 +13,7 @@ $DatabasePath = [IO.Path]::GetFullPath('@WINDOWS_DB_PATH@')
 $LogDirectory = [IO.Path]::GetFullPath('@WINDOWS_LOG_DIR@')
 $AdminStatusUrl = 'http://127.0.0.1:18090/api/status'
 
-$Repository = 'williamveith/fbs-interlock-gateway'
+$Repository = 'williamveith/fbs-interlock-gateway-cluster'
 $AssetName = "$AppName-windows-amd64.exe"
 $BaseUrl = "https://github.com/$Repository/releases/latest/download"
 $BinaryUrl = "$BaseUrl/$AssetName"

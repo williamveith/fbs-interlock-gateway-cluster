@@ -1,7 +1,7 @@
 # License Package
 
 This package contains a proposed custom licensing structure for
-`fbs-interlock-gateway`.
+`fbs-interlock-gateway-cluster`.
 
 ## Files
 

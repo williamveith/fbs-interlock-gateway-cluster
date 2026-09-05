@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/config"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
 	"gopkg.in/yaml.v3"
 	_ "modernc.org/sqlite"
 )

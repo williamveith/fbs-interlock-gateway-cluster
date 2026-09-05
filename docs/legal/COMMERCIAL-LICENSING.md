@@ -1,6 +1,6 @@
 # Commercial and Employer Licensing
 
-The `fbs-interlock-gateway` project is available without charge under the
+The `fbs-interlock-gateway-cluster` project is available without charge under the
 [FBS Interlock Gateway Public Benefit Source License 1.0](LICENSE.md) to
 individuals and organizations that are not current or former employers of the
 Licensor.
@@ -18,7 +18,7 @@ For licensing inquiries:
 
 ```text
 William Veith
-fbs-interlock-gateway@williamveith.com
+fbs-interlock-gateway-cluster@williamveith.com
 ```
 
 The University of Texas at Austin temporary arrangement is documented

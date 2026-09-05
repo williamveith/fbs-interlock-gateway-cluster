@@ -8,7 +8,7 @@ lang: en-US
 
 > **Purpose**
 >
-> This guide documents the wiring configurations, junction-box label artwork, material selections, device-identification format, and fabrication notes for the Shelly-based interlock hardware used with `fbs-interlock-gateway`.
+> This guide documents the wiring configurations, junction-box label artwork, material selections, device-identification format, and fabrication notes for the Shelly-based interlock hardware used with `fbs-interlock-gateway-cluster`.
 
 > **Security and safety boundary**
 >
@@ -58,7 +58,7 @@ The two supported power arrangements are:
 
 ```text
 FBS
-    -> fbs-interlock-gateway
+    -> fbs-interlock-gateway-cluster
     -> Shelly RPC over HTTP or HTTPS
     -> Shelly relay dry contact
     -> tool interlock / monitor circuit

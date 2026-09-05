@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/williamveith/fbs-interlock-gateway/internal/config"
+	"github.com/williamveith/fbs-interlock-gateway-cluster/internal/config"
 )
 
 func TestStoreRoundTrip(t *testing.T) {
@@ -205,9 +205,9 @@ func testConfig() config.Config {
 			TimeoutMS:        5000,
 			SafeStateOnError: "off",
 			ShellyTLS: config.ShellyTLSConfig{
-				ServerCAFile:   "/etc/fbs-interlock-gateway/tls/server-ca.crt",
-				ClientCertFile: "/etc/fbs-interlock-gateway/tls/gateway-client.crt",
-				ClientKeyFile:  "/etc/fbs-interlock-gateway/tls/gateway-client.key",
+				ServerCAFile:   "/etc/fbs-interlock-gateway-cluster/tls/server-ca.crt",
+				ClientCertFile: "/etc/fbs-interlock-gateway-cluster/tls/gateway-client.crt",
+				ClientKeyFile:  "/etc/fbs-interlock-gateway-cluster/tls/gateway-client.key",
 			},
 		},
 		Tools: []config.Tool{

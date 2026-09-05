@@ -1,4 +1,4 @@
-module github.com/williamveith/fbs-interlock-gateway
+module github.com/williamveith/fbs-interlock-gateway-cluster
 
 go 1.26
 
