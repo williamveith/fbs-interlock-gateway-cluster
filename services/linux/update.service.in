@@ -1,8 +1,0 @@
-[Unit]
-Description=Update FBS Interlock Gateway
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=@INSTALL_DIR@/update.sh

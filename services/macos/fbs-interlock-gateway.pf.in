@@ -1,6 +1,0 @@
-# Managed by the FBS Interlock Gateway installer.
-# Permit the authorized FBS source and reject every other inbound connection
-# to the gateway listener range. Preserve loopback access for local testing.
-pass in quick on lo0 proto tcp from any to any port @FBS_PORT_RANGE@ keep state
-pass in quick proto tcp from @FBS_SOURCE_IP@ to any port @FBS_PORT_RANGE@ keep state
-block in quick proto tcp from any to any port @FBS_PORT_RANGE@
