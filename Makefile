@@ -1,35 +1,32 @@
 SHELL := /bin/bash
 
 APP := fbs-interlock-gateway-cluster
-CMD := ./cmd/$(APP)
+ENTRYPOINT := swarm-entrypoint
+ENTRYPOINT_CMD := ./cmd/swarm-entrypoint
 
 BUILD_DIR := build
-BINARY := $(BUILD_DIR)/$(APP)
+ENTRYPOINT_AMD64 := $(BUILD_DIR)/$(ENTRYPOINT)-linux-amd64
+ENTRYPOINT_ARM64 := $(BUILD_DIR)/$(ENTRYPOINT)-linux-arm64
 
-CONFIGS := config.yaml
+GATEWAY_VERSION ?= v4.0.1
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+CLUSTER_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-LDFLAGS := -s -w \
-	-X main.version=$(VERSION) \
-	-X main.commit=$(COMMIT) \
-	-X main.date=$(DATE)
 
 # =========================
 # CONTAINER
 # =========================
 
-# Local image settings used by development targets.
+DOCKER_PLATFORM ?= $(shell \
+	docker version \
+		--format '{{.Server.Os}}/{{.Server.Arch}}' \
+		2>/dev/null || echo linux/amd64)
+
 CONTAINER_IMAGE ?= $(APP)
 CONTAINER_TAG ?= dev
-CONTAINER_PLATFORM ?= linux/amd64
+CONTAINER_PLATFORM ?= $(DOCKER_PLATFORM)
 
-# Public Docker Hub release settings. Docker Desktop on macOS and Windows
-# runs Linux containers, so these two image variants cover:
-#   linux/amd64  -> x86-64 Linux, Intel Mac, Windows x64 (Linux containers)
-#   linux/arm64  -> ARM64 Linux, Apple Silicon Mac
 DOCKERHUB_NAMESPACE ?= williamveith
 DOCKERHUB_IMAGE ?= docker.io/$(DOCKERHUB_NAMESPACE)/$(APP)
 DOCKERHUB_TAG ?= 1.0.0
@@ -48,16 +45,8 @@ SWARM_STACK_FILE ?= cluster/swarm/stack.yml
 
 SWARM_VOLUME ?= fbs-gateway-swarm-data
 
-# Swarm always deploys the published Docker Hub release. The registry manifest
-# selects linux/amd64 or linux/arm64 automatically for the node running the task.
 SWARM_IMAGE ?= $(DOCKERHUB_IMAGE):$(DOCKERHUB_TAG)
-
-# Architecture of the Docker Engine running this Makefile. This is only used
-# for local helper containers and the pre-deployment image pull.
-SWARM_PLATFORM ?= $(shell \
-	docker version \
-		--format '{{.Server.Os}}/{{.Server.Arch}}' \
-		2>/dev/null || echo linux/amd64)
+SWARM_PLATFORM ?= $(DOCKER_PLATFORM)
 
 SWARM_DATA_UID ?= 65532
 SWARM_DATA_GID ?= 65532
@@ -69,14 +58,14 @@ SERVER_CA_SECRET := server-ca
 GATEWAY_CLIENT_CERT_SECRET := gateway-client-cert
 GATEWAY_CLIENT_KEY_SECRET := gateway-client-key
 
-TLS_SERVER_CA_SOURCE := pki/ca/server-ca.crt
-TLS_CLIENT_CERT_SOURCE := pki/gateway/gateway-client.crt
-TLS_CLIENT_KEY_SOURCE := pki/gateway/gateway-client.key
+TLS_SERVER_CA_SOURCE ?= pki/ca/server-ca.crt
+TLS_CLIENT_CERT_SOURCE ?= pki/gateway/gateway-client.crt
+TLS_CLIENT_KEY_SOURCE ?= pki/gateway/gateway-client.key
 
 .PHONY: \
-	run \
 	fmt \
 	fmt-check \
+	tidy \
 	tidy-check \
 	vet \
 	staticcheck \
@@ -87,9 +76,9 @@ TLS_CLIENT_KEY_SOURCE := pki/gateway/gateway-client.key
 	build \
 	build-check \
 	verify \
-	init-config \
 	container-build \
 	container-run \
+	container-smoke \
 	container-builder \
 	container-login \
 	container-publish \
@@ -113,55 +102,20 @@ TLS_CLIENT_KEY_SOURCE := pki/gateway/gateway-client.key
 	swarm-logs \
 	swarm-local-purge \
 	swarm-full-test \
-	shelly-auth \
-	ca \
-	gateway-cert \
-	shelly-cert \
 	clean
 
 # =========================
 # DEVELOPMENT
 # =========================
 
-run:
-	go run $(CMD) -config $(CONFIGS)
-
 fmt:
 	go fmt ./...
 
+tidy:
+	go mod tidy
+
 test:
 	go test -count=1 ./...
-
-# =========================
-# CONFIGURATION
-# =========================
-
-init-config:
-	@if [ -f "$(CONFIGS)" ]; then \
-		echo "$(CONFIGS) already exists; not overwriting."; \
-	else \
-		echo "Creating $(CONFIGS)"; \
-		printf '%s\n' \
-			'bind: 0.0.0.0' \
-			'' \
-			'defaults:' \
-			'  timeout_ms: 5000' \
-			'  safe_state_on_error: "off"' \
-			'  shelly_tls:' \
-			'    server_ca_file: "./tls/server-ca.crt"' \
-			'    client_cert_file: "./tls/gateway-client.crt"' \
-			'    client_key_file: "./tls/gateway-client.key"' \
-			'' \
-			'tools:' \
-			'  - interlock_name:' \
-			'    ip:' \
-			'    port:' \
-			'    switch_id:' \
-			'    username:' \
-			'    password:' \
-			'    enabled:' \
-			> "$(CONFIGS)"; \
-	fi
 
 # =========================
 # BUILD
@@ -171,17 +125,18 @@ build:
 	mkdir -p "$(BUILD_DIR)"
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 		-trimpath \
-		-ldflags="$(LDFLAGS)" \
-		-o "$(BINARY)" \
-		$(CMD)
-
-build-check:
-	mkdir -p "$(BUILD_DIR)/ci"
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+		-ldflags="-s -w" \
+		-o "$(ENTRYPOINT_AMD64)" \
+		$(ENTRYPOINT_CMD)
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
 		-trimpath \
-		-ldflags="$(LDFLAGS)" \
-		-o "$(BUILD_DIR)/ci/$(APP)" \
-		$(CMD)
+		-ldflags="-s -w" \
+		-o "$(ENTRYPOINT_ARM64)" \
+		$(ENTRYPOINT_CMD)
+
+build-check: build
+	@file "$(ENTRYPOINT_AMD64)"
+	@file "$(ENTRYPOINT_ARM64)"
 
 # =========================
 # CONTAINER
@@ -191,11 +146,25 @@ container-build:
 	docker build \
 		--platform "$(CONTAINER_PLATFORM)" \
 		-f Dockerfile \
-		--build-arg VERSION="$(VERSION)" \
+		--build-arg GATEWAY_VERSION="$(GATEWAY_VERSION)" \
+		--build-arg VERSION="$(CLUSTER_VERSION)" \
 		--build-arg COMMIT="$(COMMIT)" \
 		--build-arg DATE="$(DATE)" \
 		-t "$(CONTAINER_IMAGE):$(CONTAINER_TAG)" \
 		.
+
+container-smoke: container-build
+	@output="$$(docker run --rm \
+		--platform "$(CONTAINER_PLATFORM)" \
+		--entrypoint /fbs-interlock-gateway \
+		"$(CONTAINER_IMAGE):$(CONTAINER_TAG)" \
+		-version)"; \
+	echo "$$output"; \
+	echo "$$output" | grep -F "version=$(GATEWAY_VERSION)" >/dev/null || { \
+		echo "ERROR: image does not contain gateway $(GATEWAY_VERSION)."; \
+		exit 1; \
+	}; \
+	echo "Verified gateway $(GATEWAY_VERSION) in $(CONTAINER_IMAGE):$(CONTAINER_TAG)."
 
 container-run:
 	docker run --rm \
@@ -207,7 +176,6 @@ container-run:
 		-v fbs-gateway-data:/data \
 		"$(CONTAINER_IMAGE):$(CONTAINER_TAG)"
 
-# Create or select a Buildx builder capable of producing a manifest list.
 container-builder:
 	@command -v docker >/dev/null 2>&1 || { \
 		echo "ERROR: docker is not installed."; \
@@ -227,17 +195,15 @@ container-builder:
 	fi
 	@docker buildx inspect --bootstrap >/dev/null
 
-# Interactive Docker Hub login. The password/token is never stored in this Makefile.
 container-login:
 	docker login --username "$(DOCKERHUB_NAMESPACE)"
 
-# Build both Linux architectures, assemble one multi-platform manifest, and
-# push it directly to Docker Hub as williamveith/fbs-interlock-gateway-cluster:1.0.0.
 container-publish: container-builder
 	docker buildx build \
 		--builder "$(BUILDX_BUILDER)" \
 		--platform "$(DOCKERHUB_PLATFORMS)" \
 		-f Dockerfile \
+		--build-arg GATEWAY_VERSION="$(GATEWAY_VERSION)" \
 		--build-arg VERSION="$(DOCKERHUB_TAG)" \
 		--build-arg COMMIT="$(COMMIT)" \
 		--build-arg DATE="$(DATE)" \
@@ -246,7 +212,6 @@ container-publish: container-builder
 		.
 	@$(MAKE) container-inspect
 
-# Show the manifest after publication so the two architecture variants can be verified.
 container-inspect:
 	docker buildx imagetools inspect \
 		"$(DOCKERHUB_IMAGE):$(DOCKERHUB_TAG)"
@@ -491,8 +456,6 @@ swarm-wait:
 	docker service ps "$(SWARM_SERVICE)"; \
 	exit 1
 
-# Normal local deployment.
-# Existing database volume and existing Swarm secrets are preserved.
 swarm-local-deploy:
 	@$(MAKE) swarm-preflight
 	@$(MAKE) swarm-image
@@ -502,11 +465,6 @@ swarm-local-deploy:
 	@$(MAKE) swarm-deploy
 	@$(MAKE) swarm-wait
 
-# Full clean/reprovisioning test.
-# Removes the stack, destroys the local SQLite volume,
-# recreates all Swarm secrets, and redeploys.
-#
-# Litestream must restore gateway.sqlite3 from R2.
 swarm-reset-deploy:
 	@$(MAKE) swarm-preflight
 	@$(MAKE) swarm-image
@@ -515,6 +473,7 @@ swarm-reset-deploy:
 	@$(MAKE) swarm-volume-reset
 	@$(MAKE) swarm-secrets-recreate
 	@$(MAKE) swarm-deploy
+	@$(MAKE) swarm-wait
 
 swarm-status:
 	@echo "=== Nodes ==="
@@ -527,7 +486,10 @@ swarm-status:
 	@docker service ps "$(SWARM_SERVICE)"
 
 swarm-logs:
-	docker service logs -f "$(SWARM_SERVICE)"
+	@docker service logs -f "$(SWARM_SERVICE)" || { \
+		status=$$?; \
+		[ "$$status" -eq 130 ] || exit "$$status"; \
+	}
 
 # =========================
 # LOCAL SWARM PURGE / TEST
@@ -617,11 +579,16 @@ fmt-check:
 tidy-check:
 	@set -eu; \
 	tmp_dir="$$(mktemp -d)"; \
-	cp go.mod go.sum "$$tmp_dir/"; \
-	trap 'cp "$$tmp_dir/go.mod" go.mod; cp "$$tmp_dir/go.sum" go.sum; rm -rf "$$tmp_dir"' EXIT; \
+	cp go.mod "$$tmp_dir/go.mod"; \
+	if [ -f go.sum ]; then cp go.sum "$$tmp_dir/go.sum"; else : > "$$tmp_dir/go.sum"; fi; \
+	trap 'cp "$$tmp_dir/go.mod" go.mod; if [ -s "$$tmp_dir/go.sum" ]; then cp "$$tmp_dir/go.sum" go.sum; else rm -f go.sum; fi; rm -rf "$$tmp_dir"' EXIT; \
 	go mod tidy; \
 	diff -u "$$tmp_dir/go.mod" go.mod; \
-	diff -u "$$tmp_dir/go.sum" go.sum
+	if [ -f go.sum ]; then \
+		diff -u "$$tmp_dir/go.sum" go.sum; \
+	else \
+		test ! -s "$$tmp_dir/go.sum"; \
+	fi
 
 vet:
 	go vet ./...
@@ -651,30 +618,6 @@ verify: \
 	scripts-check \
 	shellcheck \
 	build-check
-
-# =========================
-# UTILITIES
-# =========================
-
-shelly-auth:
-	@chmod +x scripts/set-shelly-auth.sh
-	@./scripts/set-shelly-auth.sh
-
-# =========================
-# TLS UTILITIES
-# =========================
-
-ca:
-	@chmod +x scripts/tls/create-ca.sh
-	@./scripts/tls/create-ca.sh
-
-gateway-cert:
-	@chmod +x scripts/tls/create-gateway-client.sh
-	@./scripts/tls/create-gateway-client.sh
-
-shelly-cert:
-	@chmod +x scripts/tls/create-shelly-cert.sh
-	@./scripts/tls/create-shelly-cert.sh
 
 # =========================
 # CLEANUP

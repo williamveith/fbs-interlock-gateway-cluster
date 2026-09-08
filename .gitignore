@@ -1,10 +1,30 @@
+# macOS
 .DS_Store
-build
-pki
-config.yaml
-config.yaml.bak
-*.db-journal
-*.db-wal
-*.db-shm
-container-test
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local environment / secrets
 .env
+.env.*
+!.env.example
+
+# Go build output
+bin/
+build/
+dist/
+*.test
+coverage.out
+*.prof
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+
+# Local Docker / cluster state
+.docker/
