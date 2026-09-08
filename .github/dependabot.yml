@@ -1,7 +1,7 @@
 version: 2
 
 updates:
-  # Go module dependencies from go.mod/go.sum
+  # Go module/tool dependencies from go.mod/go.sum
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
@@ -19,6 +19,18 @@ updates:
         update-types:
           - "minor"
           - "patch"
+
+  # Base images referenced by Dockerfile
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:10"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "docker"
 
   # Actions referenced by .github/workflows/*.yml
   - package-ecosystem: "github-actions"

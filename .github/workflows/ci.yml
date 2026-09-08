@@ -17,7 +17,7 @@ jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -32,37 +32,39 @@ jobs:
       - name: Verify repository
         run: make verify
 
-      - name: Smoke-test Linux AMD64 binary
+      - name: Smoke-test container on Linux AMD64
+        run: |
+          make container-smoke \
+            CONTAINER_PLATFORM=linux/amd64 \
+            CONTAINER_TAG=ci-amd64
+
+      - name: Build Linux ARM64 container
+        run: |
+          make container-build \
+            CONTAINER_PLATFORM=linux/arm64 \
+            CONTAINER_TAG=ci-arm64
+
+      - name: Verify ARM64 image architecture
         shell: bash
         run: |
           set -euo pipefail
 
-          output="$(
-            ./build/ci/fbs-interlock-gateway-cluster-linux-amd64 -version
+          architecture="$(
+            docker image inspect \
+              fbs-interlock-gateway-cluster:ci-arm64 \
+              --format '{{.Architecture}}'
           )"
 
-          echo "${output}"
+          echo "Architecture: ${architecture}"
+          test "${architecture}" = "arm64"
 
-          grep -q \
-            "fbs-interlock-gateway-cluster version=" \
-            <<< "${output}"
-
-      - name: Inspect binary formats
+      - name: Validate Swarm stack
         shell: bash
+        env:
+          R2_ACCOUNT_ID: ci-test
+          SWARM_IMAGE: docker.io/williamveith/fbs-interlock-gateway-cluster:ci
         run: |
           set -euo pipefail
-
-          file build/ci/fbs-interlock-gateway-cluster-linux-amd64 \
-            | grep -Eq "ELF 64-bit.*x86-64"
-
-          file build/ci/fbs-interlock-gateway-cluster-linux-arm64 \
-            | grep -Eq "ELF 64-bit.*ARM aarch64"
-
-          file build/ci/fbs-interlock-gateway-cluster-windows-amd64.exe \
-            | grep -Eq "PE32\+ executable.*x86-64"
-
-          file build/ci/fbs-interlock-gateway-cluster-darwin-arm64 \
-            | grep -Eiq "Mach-O 64-bit.*(arm64|aarch64).*executable"
-
-          file build/ci/fbs-interlock-gateway-cluster-darwin-amd64 \
-            | grep -Eiq "Mach-O 64-bit.*x86_64.*executable"
+          docker stack config \
+            -c cluster/swarm/stack.yml \
+            >/dev/null
