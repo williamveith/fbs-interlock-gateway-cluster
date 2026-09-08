@@ -3,7 +3,7 @@
 #
 # Build the cluster-specific Swarm entrypoint.
 #
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS entrypoint-builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS entrypoint-builder
 
 WORKDIR /src
 
