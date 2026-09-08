@@ -76,6 +76,7 @@ LABEL org.opencontainers.image.title="fbs-interlock-gateway-cluster" \
       org.opencontainers.image.revision="${COMMIT}" \
       org.opencontainers.image.created="${DATE}" \
       org.opencontainers.image.source="https://github.com/williamveith/fbs-interlock-gateway-cluster" \
+      org.opencontainers.image.description="Docker Swarm image for FBS Interlock Gateway with Litestream, Cloudflare R2 persistence, and multi-architecture Linux support." \
       io.fbs-interlock-gateway.version="${GATEWAY_VERSION}"
 
 COPY --from=gateway \
