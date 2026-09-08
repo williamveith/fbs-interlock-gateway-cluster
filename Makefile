@@ -154,6 +154,7 @@ container-build:
 		.
 
 container-smoke: container-build
+	@echo "Testing upstream gateway..."
 	@output="$$(docker run --rm \
 		--platform "$(CONTAINER_PLATFORM)" \
 		--entrypoint /fbs-interlock-gateway \
@@ -164,7 +165,23 @@ container-smoke: container-build
 		echo "ERROR: image does not contain gateway $(GATEWAY_VERSION)."; \
 		exit 1; \
 	}; \
-	echo "Verified gateway $(GATEWAY_VERSION) in $(CONTAINER_IMAGE):$(CONTAINER_TAG)."
+	echo "Verified gateway $(GATEWAY_VERSION)."
+
+	@echo "Testing Swarm entrypoint..."
+	@output="$$(docker run --rm \
+		--platform "$(CONTAINER_PLATFORM)" \
+		-e R2_ACCESS_KEY_ID=test \
+		-e R2_SECRET_ACCESS_KEY=test \
+		"$(CONTAINER_IMAGE):$(CONTAINER_TAG)" \
+		version)"; \
+	echo "$$output"; \
+	echo "$$output" | grep -F "v0.5.17" >/dev/null || { \
+		echo "ERROR: swarm-entrypoint failed to launch Litestream."; \
+		exit 1; \
+	}; \
+	echo "Verified swarm-entrypoint and Litestream."
+
+	@echo "Container smoke tests passed."
 
 container-run:
 	docker run --rm \
@@ -208,6 +225,8 @@ container-publish: container-builder
 		--build-arg COMMIT="$(COMMIT)" \
 		--build-arg DATE="$(DATE)" \
 		-t "$(DOCKERHUB_IMAGE):$(DOCKERHUB_TAG)" \
+		--provenance=mode=max \
+		--sbom=true \
 		--push \
 		.
 	@$(MAKE) container-inspect
@@ -423,20 +442,11 @@ swarm-deploy:
 	@set -a; \
 	source "$(ENV_FILE)"; \
 	set +a; \
-	export R2_ACCOUNT_ID; \
-	image_count="$$(grep -Ec '^[[:space:]]*image:[[:space:]]*' "$(SWARM_STACK_FILE)" || true)"; \
-	if [ "$$image_count" -ne 1 ]; then \
-		echo "ERROR: Expected exactly one image: entry in $(SWARM_STACK_FILE); found $$image_count."; \
-		exit 1; \
-	fi; \
-	tmp_stack="$$(mktemp)"; \
-	trap 'rm -f "$$tmp_stack"' EXIT; \
-	sed -E 's#^([[:space:]]*)image:[[:space:]]*.*#\1image: $(SWARM_IMAGE)#' \
-		"$(SWARM_STACK_FILE)" > "$$tmp_stack"; \
+	SWARM_IMAGE="$(SWARM_IMAGE)" \
 	docker stack deploy \
 		--with-registry-auth \
 		--resolve-image always \
-		-c "$$tmp_stack" \
+		-c "$(SWARM_STACK_FILE)" \
 		"$(SWARM_STACK)"
 
 swarm-wait:

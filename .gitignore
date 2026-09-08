@@ -12,6 +12,7 @@
 .env
 .env.*
 !.env.example
+pki
 
 # Go build output
 bin/

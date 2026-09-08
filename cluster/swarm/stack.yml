@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   gateway:
-    image: fbs-interlock-gateway-cluster:swarm-test
+    image: "${SWARM_IMAGE}"
 
     user: "65532:65532"
 

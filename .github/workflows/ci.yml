@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify repository
+        run: make verify
+
+      - name: Smoke-test container on Linux AMD64
+        run: |
+          make container-smoke \
+            CONTAINER_PLATFORM=linux/amd64 \
+            CONTAINER_TAG=ci-amd64
+
+      - name: Build Linux ARM64 container
+        run: |
+          make container-build \
+            CONTAINER_PLATFORM=linux/arm64 \
+            CONTAINER_TAG=ci-arm64
+
+      - name: Verify ARM64 image architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          architecture="$(
+            docker image inspect \
+              fbs-interlock-gateway-cluster:ci-arm64 \
+              --format '{{.Architecture}}'
+          )"
+
+          echo "Architecture: ${architecture}"
+          test "${architecture}" = "arm64"
+
+      - name: Validate Swarm stack
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ci-test
+          SWARM_IMAGE: docker.io/williamveith/fbs-interlock-gateway-cluster:ci
+        run: |
+          set -euo pipefail
+          docker stack config \
+            -c cluster/swarm/stack.yml \
+            >/dev/null

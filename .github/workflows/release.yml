@@ -1,0 +1,370 @@
+name: Validate, Attest, Sign, Tag, and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Cluster release version, for example v1.0.1
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate release request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+
+    steps:
+      - name: Require main branch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Releases must be created from main."
+            echo "Current ref: ${GITHUB_REF}"
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate version
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid version: ${VERSION}"
+            exit 1
+          fi
+
+          if git show-ref \
+            --verify \
+            --quiet \
+            "refs/tags/${VERSION}"; then
+            echo "Tag already exists: ${VERSION}"
+            exit 1
+          fi
+
+      - name: Validate pinned upstream gateway release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gateway_version="$(
+            sed -n 's/^GATEWAY_VERSION[[:space:]]*?=[[:space:]]*//p' Makefile | head -n1
+          )"
+
+          if [[ ! "${gateway_version}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid or missing GATEWAY_VERSION in Makefile: ${gateway_version}"
+            exit 1
+          fi
+
+          echo "Pinned gateway release: ${gateway_version}"
+
+          gh release view "${gateway_version}" \
+            --repo williamveith/fbs-interlock-gateway \
+            >/dev/null
+
+          gh release verify "${gateway_version}" \
+            --repo williamveith/fbs-interlock-gateway
+
+  validate:
+    name: Validate source and container
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify repository
+        run: make verify
+
+      - name: Smoke-test release container
+        run: |
+          make container-smoke \
+            CONTAINER_PLATFORM=linux/amd64 \
+            CONTAINER_TAG=release-smoke
+
+      - name: Build Linux ARM64 container
+        run: |
+          make container-build \
+            CONTAINER_PLATFORM=linux/arm64 \
+            CONTAINER_TAG=release-arm64
+
+      - name: Verify ARM64 image architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          architecture="$(
+            docker image inspect \
+              fbs-interlock-gateway-cluster:release-arm64 \
+              --format '{{.Architecture}}'
+          )"
+
+          test "${architecture}" = "arm64"
+
+      - name: Validate Swarm stack
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: release-test
+          SWARM_IMAGE: docker.io/williamveith/fbs-interlock-gateway-cluster:release-test
+        run: |
+          set -euo pipefail
+          docker stack config \
+            -c cluster/swarm/stack.yml \
+            >/dev/null
+
+  publish:
+    name: Publish image and signed release
+    needs:
+      - preflight
+      - validate
+
+    environment: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      actions: read
+      attestations: read
+      contents: write
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set release metadata
+        id: metadata
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          docker_tag="${VERSION#v}"
+
+          gateway_version="$(
+            sed -n 's/^GATEWAY_VERSION[[:space:]]*?=[[:space:]]*//p' Makefile | head -n1
+          )"
+
+          echo "docker_tag=${docker_tag}" >> "${GITHUB_OUTPUT}"
+          echo "gateway_version=${gateway_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Docker Hub
+        shell: bash
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is not configured}"
+          : "${DOCKERHUB_TOKEN:?DOCKERHUB_TOKEN is not configured}"
+
+          printf '%s' "${DOCKERHUB_TOKEN}" | \
+            docker login \
+              --username "${DOCKERHUB_USERNAME}" \
+              --password-stdin
+
+      - name: Build and publish multi-platform image
+        shell: bash
+        env:
+          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+
+          make container-publish \
+            DOCKERHUB_TAG="${DOCKER_TAG}"
+
+      - name: Publish latest image alias
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Prerelease version; leaving the latest tag unchanged."
+            exit 0
+          fi
+
+          image="docker.io/williamveith/fbs-interlock-gateway-cluster"
+
+          docker buildx imagetools create \
+            --tag "${image}:latest" \
+            "${image}:${DOCKER_TAG}"
+
+      - name: Verify published platforms
+        shell: bash
+        env:
+          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+
+          image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+
+          output="$(docker buildx imagetools inspect "${image}")"
+          echo "${output}"
+
+          grep -F 'linux/amd64' <<< "${output}"
+          grep -F 'linux/arm64' <<< "${output}"
+
+      - name: Record published image digest
+        id: digest
+        shell: bash
+        env:
+          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+
+          image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+
+          digest="$(
+            docker buildx imagetools inspect "${image}" |
+            awk '/^Digest:/ { print $2; exit }'
+          )"
+
+          if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not determine published image digest: ${digest}"
+            exit 1
+          fi
+
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+
+      - name: Write release metadata
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
+          GATEWAY_VERSION: ${{ steps.metadata.outputs.gateway_version }}
+          IMAGE_DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          set -euo pipefail
+
+          cat > release-metadata.txt <<EOF
+          cluster_version=${VERSION}
+          gateway_version=${GATEWAY_VERSION}
+          image=docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}
+          digest=${IMAGE_DIGEST}
+          source_commit=${GITHUB_SHA}
+          platforms=linux/amd64,linux/arm64
+          EOF
+
+          cat release-metadata.txt
+
+      - name: Import release-signing key
+        id: import-gpg
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          fingerprint: ${{ vars.GPG_FINGERPRINT }}
+          git_user_signingkey: true
+          git_tag_gpgsign: true
+          git_committer_name: ${{ vars.GIT_COMMITTER_NAME }}
+          git_committer_email: ${{ vars.GIT_COMMITTER_EMAIL }}
+
+      - name: Create, verify, and push signed tag
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force
+
+          if git show-ref \
+            --verify \
+            --quiet \
+            "refs/tags/${VERSION}"; then
+            echo "Tag now exists: ${VERSION}"
+            exit 1
+          fi
+
+          git tag \
+            --sign "${VERSION}" \
+            --message "Release ${VERSION}" \
+            "${GITHUB_SHA}"
+
+          git verify-tag "${VERSION}"
+          git push origin "refs/tags/${VERSION}"
+
+      - name: Create immutable GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release create "${VERSION}" \
+            release-metadata.txt \
+            --verify-tag \
+            --generate-notes \
+            --title "${VERSION}"
+
+      - name: Verify published immutable release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          release_verified=0
+
+          for attempt in {1..12}; do
+            if gh release verify "${VERSION}" \
+              --repo "${GITHUB_REPOSITORY}"; then
+              release_verified=1
+              break
+            fi
+
+            echo "Release attestation is not available yet; retrying..."
+            sleep 5
+          done
+
+          if [[ "${release_verified}" -ne 1 ]]; then
+            echo "ERROR: Immutable release attestation verification failed."
+            exit 1
+          fi
+
+          gh release verify-asset \
+            "${VERSION}" \
+            release-metadata.txt \
+            --repo "${GITHUB_REPOSITORY}"

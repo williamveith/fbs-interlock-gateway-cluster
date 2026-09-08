@@ -56,7 +56,7 @@ RUN set -eux; \
     curl --fail --location --show-error \
         --output "${asset}.sha256" \
         "${base_url}/${asset}.sha256"; \
-    sha256sum --check "${asset}.sha256"; \
+    sha256sum -c "${asset}.sha256"; \
     chmod 0755 "${asset}"; \
     mv "${asset}" /out/fbs-interlock-gateway
 
