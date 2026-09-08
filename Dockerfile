@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 \
 # Download the official fbs-interlock-gateway release for
 # the target container architecture.
 #
-FROM --platform=$BUILDPLATFORM alpine:3.22 AS gateway
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS gateway
 
 RUN apk add --no-cache \
     ca-certificates \
