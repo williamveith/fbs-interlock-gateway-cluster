@@ -263,30 +263,7 @@ jobs:
             --tag "${ghcr_image}:latest" \
             "${dockerhub_image}:${DOCKER_TAG}"
 
-      - name: Verify published platforms
-        shell: bash
-        env:
-          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
-        run: |
-          set -euo pipefail
-
-          ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-
-          images=(
-            "docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
-            "ghcr.io/${ghcr_repository}:${DOCKER_TAG}"
-          )
-
-          for image in "${images[@]}"; do
-            echo "Verifying ${image}"
-            output="$(docker buildx imagetools inspect "${image}")"
-            echo "${output}"
-
-            grep -F 'linux/amd64' <<< "${output}"
-            grep -F 'linux/arm64' <<< "${output}"
-          done
-
-      - name: Record published image digests
+      - name: Verify published images and record digests
         id: digests
         shell: bash
         env:
@@ -294,18 +271,52 @@ jobs:
         run: |
           set -euo pipefail
 
+          inspect_with_retry() {
+            local image="$1"
+            local output=""
+            local attempt
+
+            for attempt in {1..5}; do
+              if output="$(docker buildx imagetools inspect "${image}" 2>&1)"; then
+                printf '%s\n' "${output}"
+                return 0
+              fi
+
+              echo "Registry inspection failed for ${image} (attempt ${attempt}/5)." >&2
+              echo "${output}" >&2
+
+              if [[ "${attempt}" -lt 5 ]]; then
+                sleep 3
+              fi
+            done
+
+            return 1
+          }
+
           dockerhub_image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
           ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
           ghcr_image="ghcr.io/${ghcr_repository}:${DOCKER_TAG}"
 
+          echo "Verifying ${dockerhub_image}"
+          dockerhub_output="$(inspect_with_retry "${dockerhub_image}")"
+          echo "${dockerhub_output}"
+
+          grep -F 'linux/amd64' <<< "${dockerhub_output}"
+          grep -F 'linux/arm64' <<< "${dockerhub_output}"
+
           dockerhub_digest="$(
-            docker buildx imagetools inspect "${dockerhub_image}" |
-            awk '/^Digest:/ { print $2; exit }'
+            awk '/^Digest:/ { print $2; exit }' <<< "${dockerhub_output}"
           )"
 
+          echo "Verifying ${ghcr_image}"
+          ghcr_output="$(inspect_with_retry "${ghcr_image}")"
+          echo "${ghcr_output}"
+
+          grep -F 'linux/amd64' <<< "${ghcr_output}"
+          grep -F 'linux/arm64' <<< "${ghcr_output}"
+
           ghcr_digest="$(
-            docker buildx imagetools inspect "${ghcr_image}" |
-            awk '/^Digest:/ { print $2; exit }'
+            awk '/^Digest:/ { print $2; exit }' <<< "${ghcr_output}"
           )"
 
           for digest in "${dockerhub_digest}" "${ghcr_digest}"; do
@@ -321,6 +332,9 @@ jobs:
             echo "GHCR:       ${ghcr_digest}"
             exit 1
           fi
+
+          echo "Docker Hub digest: ${dockerhub_digest}"
+          echo "GHCR digest:       ${ghcr_digest}"
 
           echo "dockerhub_digest=${dockerhub_digest}" >> "${GITHUB_OUTPUT}"
           echo "ghcr_digest=${ghcr_digest}" >> "${GITHUB_OUTPUT}"
