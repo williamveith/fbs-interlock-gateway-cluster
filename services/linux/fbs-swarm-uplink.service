@@ -1,0 +1,13 @@
+[Unit]
+Description=FBS Swarm shared utexas-iot uplink controller
+After=docker.service NetworkManager.service
+Wants=docker.service NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/fbs-swarm-uplink
+Restart=always
+RestartSec=1s
+
+[Install]
+WantedBy=multi-user.target

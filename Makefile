@@ -21,9 +21,20 @@ LDFLAGS := -s -w \
 # CONTAINER
 # =========================
 
+# Local image settings used by development targets.
 CONTAINER_IMAGE ?= $(APP)
 CONTAINER_TAG ?= dev
 CONTAINER_PLATFORM ?= linux/amd64
+
+# Public Docker Hub release settings. Docker Desktop on macOS and Windows
+# runs Linux containers, so these two image variants cover:
+#   linux/amd64  -> x86-64 Linux, Intel Mac, Windows x64 (Linux containers)
+#   linux/arm64  -> ARM64 Linux, Apple Silicon Mac
+DOCKERHUB_NAMESPACE ?= williamveith
+DOCKERHUB_IMAGE ?= docker.io/$(DOCKERHUB_NAMESPACE)/$(APP)
+DOCKERHUB_TAG ?= 1.0.0
+DOCKERHUB_PLATFORMS ?= linux/amd64,linux/arm64
+BUILDX_BUILDER ?= fbs-multiplatform
 
 # =========================
 # SWARM
@@ -37,10 +48,12 @@ SWARM_STACK_FILE ?= cluster/swarm/stack.yml
 
 SWARM_VOLUME ?= fbs-gateway-swarm-data
 
-SWARM_CONTAINER_TAG ?= swarm-test
+# Swarm always deploys the published Docker Hub release. The registry manifest
+# selects linux/amd64 or linux/arm64 automatically for the node running the task.
+SWARM_IMAGE ?= $(DOCKERHUB_IMAGE):$(DOCKERHUB_TAG)
 
-# Build for the architecture of the Docker Engine actually running the Swarm.
-# Docker Desktop on Apple Silicon will resolve to linux/arm64.
+# Architecture of the Docker Engine running this Makefile. This is only used
+# for local helper containers and the pre-deployment image pull.
 SWARM_PLATFORM ?= $(shell \
 	docker version \
 		--format '{{.Server.Os}}/{{.Server.Arch}}' \
@@ -77,6 +90,10 @@ TLS_CLIENT_KEY_SOURCE := pki/gateway/gateway-client.key
 	init-config \
 	container-build \
 	container-run \
+	container-builder \
+	container-login \
+	container-publish \
+	container-inspect \
 	swarm-preflight \
 	swarm-image \
 	swarm-init \
@@ -89,6 +106,7 @@ TLS_CLIENT_KEY_SOURCE := pki/gateway/gateway-client.key
 	swarm-secrets-recreate \
 	swarm-stop \
 	swarm-deploy \
+	swarm-wait \
 	swarm-local-deploy \
 	swarm-reset-deploy \
 	swarm-status \
@@ -172,7 +190,7 @@ build-check:
 container-build:
 	docker build \
 		--platform "$(CONTAINER_PLATFORM)" \
-		-f Containerfile \
+		-f Dockerfile \
 		--build-arg VERSION="$(VERSION)" \
 		--build-arg COMMIT="$(COMMIT)" \
 		--build-arg DATE="$(DATE)" \
@@ -188,6 +206,50 @@ container-run:
 		-e R2_SECRET_ACCESS_KEY \
 		-v fbs-gateway-data:/data \
 		"$(CONTAINER_IMAGE):$(CONTAINER_TAG)"
+
+# Create or select a Buildx builder capable of producing a manifest list.
+container-builder:
+	@command -v docker >/dev/null 2>&1 || { \
+		echo "ERROR: docker is not installed."; \
+		exit 1; \
+	}
+	@docker buildx version >/dev/null 2>&1 || { \
+		echo "ERROR: docker buildx is not available."; \
+		exit 1; \
+	}
+	@if docker buildx inspect "$(BUILDX_BUILDER)" >/dev/null 2>&1; then \
+		docker buildx use "$(BUILDX_BUILDER)"; \
+	else \
+		docker buildx create \
+			--name "$(BUILDX_BUILDER)" \
+			--driver docker-container \
+			--use >/dev/null; \
+	fi
+	@docker buildx inspect --bootstrap >/dev/null
+
+# Interactive Docker Hub login. The password/token is never stored in this Makefile.
+container-login:
+	docker login --username "$(DOCKERHUB_NAMESPACE)"
+
+# Build both Linux architectures, assemble one multi-platform manifest, and
+# push it directly to Docker Hub as williamveith/fbs-interlock-gateway-cluster:1.0.0.
+container-publish: container-builder
+	docker buildx build \
+		--builder "$(BUILDX_BUILDER)" \
+		--platform "$(DOCKERHUB_PLATFORMS)" \
+		-f Dockerfile \
+		--build-arg VERSION="$(DOCKERHUB_TAG)" \
+		--build-arg COMMIT="$(COMMIT)" \
+		--build-arg DATE="$(DATE)" \
+		-t "$(DOCKERHUB_IMAGE):$(DOCKERHUB_TAG)" \
+		--push \
+		.
+	@$(MAKE) container-inspect
+
+# Show the manifest after publication so the two architecture variants can be verified.
+container-inspect:
+	docker buildx imagetools inspect \
+		"$(DOCKERHUB_IMAGE):$(DOCKERHUB_TAG)"
 
 # =========================
 # SWARM PREFLIGHT
@@ -234,10 +296,10 @@ swarm-preflight:
 # =========================
 
 swarm-image:
-	@echo "Building Swarm image for $(SWARM_PLATFORM)"
-	@$(MAKE) container-build \
-		CONTAINER_PLATFORM="$(SWARM_PLATFORM)" \
-		CONTAINER_TAG="$(SWARM_CONTAINER_TAG)"
+	@echo "Pulling Docker Hub Swarm image for $(SWARM_PLATFORM): $(SWARM_IMAGE)"
+	docker pull \
+		--platform "$(SWARM_PLATFORM)" \
+		"$(SWARM_IMAGE)"
 
 # =========================
 # SWARM INITIALIZATION
@@ -391,21 +453,43 @@ swarm-stop:
 	fi
 
 swarm-deploy:
-	@$(MAKE) swarm-preflight
-	@$(MAKE) swarm-init
-	@$(MAKE) swarm-volume
-	@$(MAKE) swarm-secrets
 	@echo "Deploying Swarm stack: $(SWARM_STACK)"
+	@echo "Swarm image: $(SWARM_IMAGE)"
 	@set -a; \
 	source "$(ENV_FILE)"; \
 	set +a; \
 	export R2_ACCOUNT_ID; \
+	image_count="$$(grep -Ec '^[[:space:]]*image:[[:space:]]*' "$(SWARM_STACK_FILE)" || true)"; \
+	if [ "$$image_count" -ne 1 ]; then \
+		echo "ERROR: Expected exactly one image: entry in $(SWARM_STACK_FILE); found $$image_count."; \
+		exit 1; \
+	fi; \
+	tmp_stack="$$(mktemp)"; \
+	trap 'rm -f "$$tmp_stack"' EXIT; \
+	sed -E 's#^([[:space:]]*)image:[[:space:]]*.*#\1image: $(SWARM_IMAGE)#' \
+		"$(SWARM_STACK_FILE)" > "$$tmp_stack"; \
 	docker stack deploy \
-		--resolve-image never \
-		-c "$(SWARM_STACK_FILE)" \
+		--with-registry-auth \
+		--resolve-image always \
+		-c "$$tmp_stack" \
 		"$(SWARM_STACK)"
-	@echo
-	@docker stack services "$(SWARM_STACK)"
+
+swarm-wait:
+	@echo "Waiting for $(SWARM_SERVICE) to reach 1/1..."
+	@for attempt in $$(seq 1 60); do \
+		replicas="$$(docker service ls \
+			--filter name="$(SWARM_SERVICE)" \
+			--format '{{.Name}} {{.Replicas}}' 2>/dev/null | \
+			awk '$$1 == "$(SWARM_SERVICE)" { print $$2 }')"; \
+		if [ "$$replicas" = "1/1" ]; then \
+			echo "$(SWARM_SERVICE) is running: 1/1"; \
+			exit 0; \
+		fi; \
+		sleep 1; \
+	done; \
+	echo "ERROR: $(SWARM_SERVICE) did not reach 1/1."; \
+	docker service ps "$(SWARM_SERVICE)"; \
+	exit 1
 
 # Normal local deployment.
 # Existing database volume and existing Swarm secrets are preserved.
@@ -416,6 +500,7 @@ swarm-local-deploy:
 	@$(MAKE) swarm-volume
 	@$(MAKE) swarm-secrets
 	@$(MAKE) swarm-deploy
+	@$(MAKE) swarm-wait
 
 # Full clean/reprovisioning test.
 # Removes the stack, destroys the local SQLite volume,
@@ -496,11 +581,9 @@ swarm-local-purge:
 		echo "Swarm data volume already absent: $(SWARM_VOLUME)"; \
 	fi
 
-	@if docker image inspect \
-		"$(CONTAINER_IMAGE):$(SWARM_CONTAINER_TAG)" >/dev/null 2>&1; then \
-		echo "Removing local Swarm image..."; \
-		docker image rm \
-			"$(CONTAINER_IMAGE):$(SWARM_CONTAINER_TAG)" >/dev/null; \
+	@if docker image inspect "$(SWARM_IMAGE)" >/dev/null 2>&1; then \
+		echo "Removing cached Docker Hub Swarm image: $(SWARM_IMAGE)"; \
+		docker image rm "$(SWARM_IMAGE)" >/dev/null 2>&1 || true; \
 	fi
 
 	@state="$$(docker info --format '{{.Swarm.LocalNodeState}}')"; \
@@ -516,7 +599,7 @@ swarm-full-test:
 	@$(MAKE) swarm-local-purge
 	@$(MAKE) swarm-local-deploy
 	@echo
-	@echo "Full Swarm rebuild completed."
+	@echo "Full Swarm rebuild completed successfully."
 	@$(MAKE) swarm-status
 
 # =========================
@@ -600,3 +683,5 @@ shelly-cert:
 clean:
 	rm -rf "$(BUILD_DIR)"
 	go clean
+
+include cluster/node/Makefile.mk
