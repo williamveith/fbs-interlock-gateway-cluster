@@ -160,6 +160,7 @@ jobs:
       actions: read
       attestations: read
       contents: write
+      packages: write
 
     steps:
       - name: Check out release source
@@ -200,6 +201,18 @@ jobs:
               --username "${DOCKERHUB_USERNAME}" \
               --password-stdin
 
+      - name: Log in to GitHub Container Registry
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          printf '%s' "${GHCR_TOKEN}" | \
+            docker login ghcr.io \
+              --username "${GITHUB_ACTOR}" \
+              --password-stdin
+
       - name: Build and publish multi-platform image
         shell: bash
         env:
@@ -209,6 +222,21 @@ jobs:
 
           make container-publish \
             DOCKERHUB_TAG="${DOCKER_TAG}"
+
+      - name: Publish GitHub Container Registry image
+        shell: bash
+        env:
+          DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+
+          dockerhub_image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+          ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${ghcr_repository}:${DOCKER_TAG}"
+
+          docker buildx imagetools create \
+            --tag "${ghcr_image}" \
+            "${dockerhub_image}"
 
       - name: Publish latest image alias
         shell: bash
@@ -223,11 +251,17 @@ jobs:
             exit 0
           fi
 
-          image="docker.io/williamveith/fbs-interlock-gateway-cluster"
+          dockerhub_image="docker.io/williamveith/fbs-interlock-gateway-cluster"
+          ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${ghcr_repository}"
 
           docker buildx imagetools create \
-            --tag "${image}:latest" \
-            "${image}:${DOCKER_TAG}"
+            --tag "${dockerhub_image}:latest" \
+            "${dockerhub_image}:${DOCKER_TAG}"
+
+          docker buildx imagetools create \
+            --tag "${ghcr_image}:latest" \
+            "${dockerhub_image}:${DOCKER_TAG}"
 
       - name: Verify published platforms
         shell: bash
@@ -236,35 +270,60 @@ jobs:
         run: |
           set -euo pipefail
 
-          image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+          ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
 
-          output="$(docker buildx imagetools inspect "${image}")"
-          echo "${output}"
+          images=(
+            "docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+            "ghcr.io/${ghcr_repository}:${DOCKER_TAG}"
+          )
 
-          grep -F 'linux/amd64' <<< "${output}"
-          grep -F 'linux/arm64' <<< "${output}"
+          for image in "${images[@]}"; do
+            echo "Verifying ${image}"
+            output="$(docker buildx imagetools inspect "${image}")"
+            echo "${output}"
 
-      - name: Record published image digest
-        id: digest
+            grep -F 'linux/amd64' <<< "${output}"
+            grep -F 'linux/arm64' <<< "${output}"
+          done
+
+      - name: Record published image digests
+        id: digests
         shell: bash
         env:
           DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
         run: |
           set -euo pipefail
 
-          image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+          dockerhub_image="docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}"
+          ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          ghcr_image="ghcr.io/${ghcr_repository}:${DOCKER_TAG}"
 
-          digest="$(
-            docker buildx imagetools inspect "${image}" |
+          dockerhub_digest="$(
+            docker buildx imagetools inspect "${dockerhub_image}" |
             awk '/^Digest:/ { print $2; exit }'
           )"
 
-          if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "Could not determine published image digest: ${digest}"
+          ghcr_digest="$(
+            docker buildx imagetools inspect "${ghcr_image}" |
+            awk '/^Digest:/ { print $2; exit }'
+          )"
+
+          for digest in "${dockerhub_digest}" "${ghcr_digest}"; do
+            if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "Could not determine published image digest: ${digest}"
+              exit 1
+            fi
+          done
+
+          if [[ "${dockerhub_digest}" != "${ghcr_digest}" ]]; then
+            echo "ERROR: Registry image digests differ."
+            echo "Docker Hub: ${dockerhub_digest}"
+            echo "GHCR:       ${ghcr_digest}"
             exit 1
           fi
 
-          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
+          echo "dockerhub_digest=${dockerhub_digest}" >> "${GITHUB_OUTPUT}"
+          echo "ghcr_digest=${ghcr_digest}" >> "${GITHUB_OUTPUT}"
 
       - name: Write release metadata
         shell: bash
@@ -272,15 +331,20 @@ jobs:
           VERSION: ${{ inputs.version }}
           DOCKER_TAG: ${{ steps.metadata.outputs.docker_tag }}
           GATEWAY_VERSION: ${{ steps.metadata.outputs.gateway_version }}
-          IMAGE_DIGEST: ${{ steps.digest.outputs.digest }}
+          DOCKERHUB_DIGEST: ${{ steps.digests.outputs.dockerhub_digest }}
+          GHCR_DIGEST: ${{ steps.digests.outputs.ghcr_digest }}
         run: |
           set -euo pipefail
+
+          ghcr_repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
 
           cat > release-metadata.txt <<EOF
           cluster_version=${VERSION}
           gateway_version=${GATEWAY_VERSION}
           image=docker.io/williamveith/fbs-interlock-gateway-cluster:${DOCKER_TAG}
-          digest=${IMAGE_DIGEST}
+          digest=${DOCKERHUB_DIGEST}
+          ghcr_image=ghcr.io/${ghcr_repository}:${DOCKER_TAG}
+          ghcr_digest=${GHCR_DIGEST}
           source_commit=${GITHUB_SHA}
           platforms=linux/amd64,linux/arm64
           EOF
