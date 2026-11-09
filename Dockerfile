@@ -64,7 +64,7 @@ RUN set -eux; \
 #
 # Final cluster image.
 #
-FROM litestream/litestream:0.5.17-scratch
+FROM litestream/litestream:0.5.18-scratch
 
 ARG VERSION=dev
 ARG COMMIT=unknown
